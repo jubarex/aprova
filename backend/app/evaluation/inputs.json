@@ -1,0 +1,32 @@
+{
+  "_aviso": "Entradas reservadas do conjunto F (formulário-base e resposta inicial). Sem respostas esperadas.",
+  "forms": [
+    {
+      "id": "F1-feirante",
+      "reply": "Pessoal, o campo \"Nome do feirante\" deve se chamar \"Nome completo\". Para quem vende alimentos prontos tem que anexar algum documento da vigilância. Queremos também que o pedido passe por três etapas de aprovação com a secretaria, fiscal e prefeito.",
+      "schema": {"schema_version": 1, "sections": [{"id": "dados", "label": "Dados"}], "fields": [
+        {"id": "nome_feirante", "type": "text", "section_id": "dados", "label": "Nome do feirante", "required": true},
+        {"id": "tipo_produto", "type": "select", "section_id": "dados", "label": "Tipo de produto", "required": true,
+         "options": [{"id": "hortifruti", "label": "Hortifruti"}, {"id": "artesanato", "label": "Artesanato"}, {"id": "alimentos_prontos", "label": "Alimentos prontos"}]},
+        {"id": "area_barraca", "type": "number", "section_id": "dados", "label": "Área da barraca (m²)", "required": false}], "rules": []}
+    },
+    {
+      "id": "F2-poda",
+      "reply": "Troquem o texto de ajuda do campo \"Endereço\" para \"Informe rua e número\". Quando o motivo for risco, precisa de foto — mas não sei de que tamanho de árvore. Queremos também integrar com o sistema da concessionária de energia.",
+      "schema": {"schema_version": 1, "sections": [{"id": "pedido", "label": "Pedido"}], "fields": [
+        {"id": "endereco", "type": "text", "section_id": "pedido", "label": "Endereço", "required": true},
+        {"id": "motivo", "type": "select", "section_id": "pedido", "label": "Motivo", "required": true,
+         "options": [{"id": "risco", "label": "Risco de queda"}, {"id": "obstrucao", "label": "Obstrução"}, {"id": "estetica", "label": "Estética"}]},
+        {"id": "porte", "type": "select", "section_id": "pedido", "label": "Porte", "required": false,
+         "options": [{"id": "pequeno", "label": "Pequeno"}, {"id": "medio", "label": "Médio"}, {"id": "grande", "label": "Grande"}]}], "rules": []}
+    },
+    {
+      "id": "F3-isencao",
+      "reply": "O campo \"Renda\" deve ser obrigatório. Se a renda for maior que um valor, bloquear o pedido, mas ainda não definimos o valor. Precisamos de uma tela de dashboard com gráficos para o secretário.",
+      "schema": {"schema_version": 1, "sections": [{"id": "req", "label": "Requerente"}], "fields": [
+        {"id": "nome_requerente", "type": "text", "section_id": "req", "label": "Nome do requerente", "required": true},
+        {"id": "renda", "type": "number", "section_id": "req", "label": "Renda", "required": false},
+        {"id": "comprovante", "type": "attachment", "section_id": "req", "label": "Comprovante", "required": false, "accepted_formats": ["application/pdf"]}], "rules": []}
+    }
+  ]
+}

@@ -94,7 +94,10 @@ def run_agent(s: Session, case: ValidationCase, stage: str) -> tuple[AgentEnvelo
         env, meta = replay.analyze(inp, case.id, case.version)
     else:
         from ..agent import live  # import tardio: só quando configurado
-        env, meta = live.analyze(inp, case.id, case.version, sources, [g for g in open_gaps(s, case.id)])
+        import json as _json
+        base = s.get(FormVersion, case.base_version_id)
+        env, meta = live.analyze(inp, case.id, case.version, sources, [g for g in open_gaps(s, case.id)],
+                                 _json.loads(base.content))
     meta["instructions"] = [{"id": i.id, "sha256": i.sha256} for i in loaded]
     return env, meta, sources
 

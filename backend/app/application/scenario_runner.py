@@ -13,6 +13,7 @@ from ..scenarios import SCENARIOS
 from . import attachments, decisions, messaging, people
 from .common import AppError
 from .rounds import active_round
+from ..persistence.flow_models import ValidationRound
 
 
 def scenario_of(s: Session, case: ValidationCase) -> str | None:
@@ -41,7 +42,9 @@ def run_step(s: Session, att_dir: Path, case: ValidationCase, step_id: str, impl
                 raise AppError("INVALID_TRANSITION", "a pessoa indicada ainda não foi autorizada", 409)
             actor_id = rf.new_actor_id
         actor = s.get(Actor, actor_id)
-        rnd = active_round(s, case.id)
+        # o roteiro simula uma resposta citando a mensagem da rodada (ativa, ou a última se já concluída)
+        rnd = active_round(s, case.id) or s.scalar(select(ValidationRound).where(ValidationRound.case_id == case.id)
+                                                   .order_by(ValidationRound.seq.desc()))
         if step["channel"] == "pylon":
             out = messaging.pylon_webhook(s, case, actor, external_key=key, body=step["text"])
             return {"step": step_id, **out}

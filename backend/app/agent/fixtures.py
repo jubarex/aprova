@@ -304,6 +304,30 @@ def _d_conflict() -> dict:
             "gap_updates": [upd("G1", "disputed", [0, 1], "Duas fontes se contradizem sobre o escopo")]}
 
 
+def _d_first() -> dict:
+    """Só a primeira fonte chegou: a lacuna é respondida e a candidata nasce com o escopo 'todos'."""
+    t = {"TICKET": D_REPLY, "S1": D_S1}
+    return {"stage": "reconcile",
+            "evidence": [cite(t, "TICKET", "o alvará exija a licença sanitária"),
+                         cite(t, "S1", "obrigatória para todos os ramos")],
+            "gap_updates": [upd("G1", "answered", [1])],
+            "change_set": cs("Resposta única recebida: licença sanitária obrigatória para todos os ramos.",
+                             [op({"op": "add_attachment", "field": {"id": "licenca_sanitaria", "section_id": "atividade",
+                                  "type": "attachment", "label": "Licença sanitária",
+                                  "accepted_formats": ["application/pdf"]}}, [0, 1]),
+                              op({"op": "set_required", "field_id": "licenca_sanitaria", "required": True}, [1])],
+                             [test("01 com licença", "positivo", {"ramo": "outro", "razao_social": "Loja", "licenca_sanitaria": "l.pdf"}, []),
+                              test("02 sem licença", "negativo", {"ramo": "outro", "razao_social": "Loja"}, ["OBRIGATORIO"])])}
+
+
+def _d_late_conflict() -> dict:
+    """Evidência contraditória chega depois: a lacuna respondida volta a ser disputada."""
+    t = {"S1": D_S1, "S2": D_S2}
+    return {"stage": "reconcile",
+            "evidence": [cite(t, "S1", "obrigatória para todos os ramos"), cite(t, "S2", "somente para Alimentação")],
+            "gap_updates": [upd("G1", "disputed", [0, 1], "Nova fonte contradiz a resposta anterior")]}
+
+
 def _d_final() -> dict:
     t = {"TICKET": D_REPLY, "S3": D_S3}
     return {"stage": "reconcile",
@@ -374,6 +398,8 @@ def register_all() -> None:
       _c_final({"TICKET": C_REPLY, "S1": C_S1, "S2": C_S2, "S3": C_DOC}, False))
     R("D-initial", D_REPLY, "initial", [], [], _d_initial())
     R("D-conflict", D_REPLY, "reconcile", [D_S1, D_S2], [("G1", D_Q["G1"])], _d_conflict())
+    R("D-first", D_REPLY, "reconcile", [D_S1], [("G1", D_Q["G1"])], _d_first())
+    R("D-late", D_REPLY, "reconcile", [D_S1, D_S2], [], _d_late_conflict())
     R("D-final", D_REPLY, "reconcile", [D_S1, D_S2, D_S3], [("G1", D_Q["G1"])], _d_final())
     R("E-initial", E_REPLY, "initial", [], [], _e_initial())
     R("E-final", E_REPLY, "reconcile", [E_S1], [], _e_final())

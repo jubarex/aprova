@@ -275,6 +275,62 @@ def register(app: FastAPI, c: SimpleNamespace) -> None:
                 return {"decision_id": hd.id}
             return idem(s, imp, "attachment.review", att_id, key, body.model_dump(), run)
 
+    # ---------------------------------------------------------- métricas, cronograma, avaliação
+
+    @app.get("/api/command/metrics")
+    def metrics(client: str | None = None, token: str | None = TOKEN):
+        from ..application import metrics as m
+        with db() as s:
+            need_implanter(s, whoami(s, token))
+            return m.compute(s, client)
+
+    @app.get("/api/schedule")
+    def schedule(client: str | None = None, token: str | None = TOKEN):
+        from ..persistence.models import Municipality, ProcessDefinition
+        with db() as s:
+            need_implanter(s, whoami(s, token))
+            out = []
+            for m in s.scalars(select(Municipality).order_by(Municipality.name)):
+                if client and m.id != client:
+                    continue
+                procs = list(s.scalars(select(ProcessDefinition).where(ProcessDefinition.municipality_id == m.id)
+                                       .order_by(ProcessDefinition.wave, ProcessDefinition.due_date)))
+                rows = []
+                for p in procs:
+                    case = s.scalar(select(ValidationCase).where(ValidationCase.process_id == p.id)
+                                    .order_by(ValidationCase.created_at.desc()))
+                    card = views.case_card(s, case) if case else None
+                    rows.append({"id": p.id, "code": p.code, "name": p.name, "wave": p.wave,
+                                 "due_at": views._utc(p.due_date).isoformat() if p.due_date else None,
+                                 "deadline": views.deadline_dto(p.due_date, done=bool(case and case.state == "COMPLETED")),
+                                 "case_id": case.id if case else None,
+                                 "axis": card["axis"] if card else "idle",
+                                 "state_label": card["state_label"] if card else "Não iniciado"})
+                out.append({**views.municipality_dto(m),
+                            "start": views._utc(m.start_date).isoformat() if m.start_date else None,
+                            "target": views._utc(m.target_date).isoformat() if m.target_date else None,
+                            "now": clock.business_now().isoformat(), "processes": rows})
+            return out
+
+    @app.get("/api/evaluations/latest")
+    def latest_eval(token: str | None = TOKEN):
+        import json as _json
+        from ..evaluation.generalization import ARTIFACTS
+        with db() as s:
+            need_implanter(s, whoami(s, token))
+        out = {"offline": None, "generalization": None}
+        files = (sorted(ARTIFACTS.glob("evaluation-*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+                 if ARTIFACTS.exists() else [])
+        for f in files:
+            try:
+                d = _json.loads(f.read_text(encoding="utf-8"))
+            except ValueError:
+                continue
+            g = d.get("gate")
+            if g in out and out[g] is None:
+                out[g] = {k: v for k, v in d.items() if k != "executions"}
+        return out
+
     # ---------------------------------------------------------- pessoas
 
     @app.post("/api/cases/{case_id}/referrals")

@@ -41,6 +41,31 @@ ACTORS = [
 ]
 
 
+FILLER_NAMES = [
+    "Certidão negativa de débitos", "Parcelamento de dívida ativa", "IPTU: segunda via", "ITBI: avaliação",
+    "Alvará de publicidade", "Licença ambiental simplificada", "Poda de árvore", "Coleta de entulho",
+    "Habite-se", "Desmembramento de lote", "Certidão de número", "Alvará de eventos", "Feira livre: cadastro",
+    "Taxa de lixo: isenção", "Transporte escolar: inscrição", "Matrícula: transferência", "Auxílio funeral",
+    "Isenção de ISS para MEI", "Vistoria de bombeiros", "Licença para toldo", "Uso do solo: consulta",
+    "Denúncia de obra irregular", "Ocupação de calçada", "Cemitério: concessão", "Certidão de óbito: segunda via",
+    "Cadastro imobiliário", "Alteração de endereço", "Baixa de alvará", "Renovação de alvará", "Autorização de show",
+]
+
+
+def _filler(mid: str, secs: list[tuple[str, str]], total: int, existing: int) -> list[tuple]:
+    """Processos sintéticos restantes (até `total`), distribuídos em ondas; nenhum vence nos primeiros 4 dias."""
+    out = []
+    n = total - existing
+    for i in range(n):
+        sec_id, sec_name = secs[i % len(secs)]
+        code = f"{sec_id.split('_')[-1].upper()[:3]}-{100 + i:03d}"
+        name = FILLER_NAMES[i % len(FILLER_NAMES)] + ("" if i < len(FILLER_NAMES) else f" ({i // len(FILLER_NAMES) + 1})")
+        wave = 1 + (i * 4) // n
+        due = 4 + (i * 44) // n
+        out.append((f"proc_{mid.split('_')[-1]}_f{i:03d}", code, name, sec_id, wave, due))
+    return out
+
+
 def seed(s: Session) -> None:
     fixtures.register_all()
     now = business_now()
@@ -60,7 +85,8 @@ def seed(s: Session) -> None:
                         preferred_channel="whatsapp"))
     s.flush()
     for mid, procs in PROCESSES.items():
-        for pid, code, pname, sec, wave, due_days in procs:
+        extra = _filler(mid, SECRETARIATS[mid], 70, len(procs))
+        for pid, code, pname, sec, wave, due_days in procs + extra:
             if s.get(ProcessDefinition, pid):
                 continue
             p = ProcessDefinition(id=pid, municipality_id=mid, secretariat_id=sec, code=code, name=pname,

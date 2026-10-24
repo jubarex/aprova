@@ -1,0 +1,29 @@
+{
+  "_aviso": "Gabarito reservado. Lido SOMENTE pelo comparador depois da inferência; nunca entra no prompt, no contexto do agente nem em fixtures de replay.",
+  "forms": [
+    {
+      "id": "F1-feirante",
+      "intents": [
+        {"id": "i1", "kind": "supported", "quote": "o campo \"Nome do feirante\" deve se chamar \"Nome completo\"", "op": "rename_label", "field_id": "nome_feirante"},
+        {"id": "i2", "kind": "ambiguous", "quote": "Para quem vende alimentos prontos tem que anexar algum documento da vigilância", "blocking_gap": true},
+        {"id": "i3", "kind": "review", "quote": "o pedido passe por três etapas de aprovação com a secretaria, fiscal e prefeito"}
+      ]
+    },
+    {
+      "id": "F2-poda",
+      "intents": [
+        {"id": "i1", "kind": "supported", "quote": "Troquem o texto de ajuda do campo \"Endereço\" para \"Informe rua e número\"", "op": "set_help", "field_id": "endereco"},
+        {"id": "i2", "kind": "ambiguous", "quote": "Quando o motivo for risco, precisa de foto — mas não sei de que tamanho de árvore", "blocking_gap": true},
+        {"id": "i3", "kind": "review", "quote": "integrar com o sistema da concessionária de energia"}
+      ]
+    },
+    {
+      "id": "F3-isencao",
+      "intents": [
+        {"id": "i1", "kind": "supported", "quote": "O campo \"Renda\" deve ser obrigatório", "op": "set_required", "field_id": "renda"},
+        {"id": "i2", "kind": "ambiguous", "quote": "Se a renda for maior que um valor, bloquear o pedido, mas ainda não definimos o valor", "blocking_gap": true},
+        {"id": "i3", "kind": "review", "quote": "uma tela de dashboard com gráficos para o secretário"}
+      ]
+    }
+  ]
+}
