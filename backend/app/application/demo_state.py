@@ -91,7 +91,7 @@ def populate(f: sessionmaker[Session], att_dir) -> dict:
         with tx(f) as s:
             now = business_now()
             for mid in ("vr", "sa"):
-                for i, delta in enumerate((-3, -1, 1, 3)):
+                for i, delta in enumerate((-2, 2)):
                     p = s.get(ProcessDefinition, f"proc_{mid}_f{i:03d}")
                     if p and not p.started:
                         p.due_date = now + timedelta(days=delta)
