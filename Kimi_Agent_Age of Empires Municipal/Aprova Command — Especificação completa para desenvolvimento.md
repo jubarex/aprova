@@ -7,6 +7,22 @@
 **Idioma do produto e da documentação:** português do Brasil.  
 **Nome provisório:** Aprova Command.
 
+**Revisão:** 1.1 — 24/10/2026. Contratos e critérios de prontidão revisados; implementação ainda não verificada.
+
+## Como usar este plano e o que está aprovado
+
+Este documento é a fonte normativa do Aprova Command. A pesquisa competitiva da mesma pasta é contexto histórico: o recorte anterior RegraClara, seus prazos e sua stack não substituem estas decisões. O objetivo corresponde ao desafio 2 de `desafios.txt`: reduzir idas e vindas e validar regras de formulários com testes e evidências.
+
+Há três entregas distintas:
+
+| Entrega | Critério | Situação desta revisão |
+|---|---|---|
+| Início da implementação | Contratos definidos e execução pelas fatias da seção 19 | Pode iniciar pela fatia 1; nenhuma funcionalidade é considerada implementada |
+| Demonstração local offline | Cenários A–E, G e H, persistência, políticas e interface verificados sem credenciais | Pendente de código e testes; F deve aparecer como `not_run`, nunca como aprovado |
+| Validação de generalização | Cenário F com inferência ao vivo, dados reservados e mesmo prompt-base | Pendente; depende de provedor/modelo configurado e avaliação separada |
+
+**Implantação pública/produção não está aprovada e permanece fora do escopo.** Até a demonstração local exige implementar e verificar os artefatos abaixo. Não confundir escrever um requisito com comprovar seu atendimento. O plano completo é grande para um hackathon de um dia: os marcos são gates, não promessa de concluir tudo até as 17h. Se houver corte de entrega, registrar funcionalidades pendentes explicitamente.
+
 ---
 
 # 1. Missão de construção
@@ -59,7 +75,7 @@ O mesmo código, o mesmo prompt-base e as mesmas ferramentas devem funcionar par
 
 É permitido cadastrar dados operacionais de município, processo, ticket, formulário e contatos. Isso não é configuração de instruções.
 
-**Teste eliminatório:** adicionar um formulário nunca visto, sem alterar código nem prompts, e conduzir sua triagem e primeira rodada.
+**Teste eliminatório da alegação de generalização:** adicionar um formulário nunca visto, sem alterar código nem prompts, e conduzir sua triagem e primeira rodada com inferência ao vivo. Replay comprova apenas os fluxos conhecidos; não satisfaz este teste. Sem credenciais, a demo operacional pode funcionar, mas o cenário F fica `not_run` e a generalização permanece não comprovada.
 
 ## 2.2 Rodadas completas, não perguntas isoladas
 
@@ -136,8 +152,8 @@ O modo `offline_replay` deve ser identificado como replay. Não pode ser apresen
 - Associar implantações, processos e responsáveis.
 - Suportar duas prefeituras na demonstração.
 - Exibir 70 processos por implantação para demonstrar escala visual.
-- Pelo menos seis processos devem possuir cenários completos e interativos de referência.
-- Os demais processos podem ser semeados a partir de templates genéricos e devem poder iniciar o mesmo fluxo, sem prompts específicos.
+- Pelo menos seis processos devem servir de referência interativa, cobrindo A–E, G e H; um processo pode exercitar mais de um cenário. O cenário F usa formulário reservado, separado do seed e do replay.
+- Os demais processos podem ser semeados a partir de templates genéricos. Todos usam a mesma entrada de fluxo; em replay, entradas não cobertas param com erro explícito e possibilidade de intervenção, sem inventar análise.
 - Processos apenas semeados não podem inflar métricas de sucesso ou autonomia.
 
 ## 3.2 Tickets e Pylon simulado
@@ -447,7 +463,7 @@ Intervir quando houver:
 - Viabilidade `requires_product_review` ou `unknown`.
 - Falha repetida de interpretação.
 - Baixa confiança em evidência essencial.
-- Mais de três rodadas sem reduzir lacunas bloqueantes.
+- Três rodadas substantivas consecutivas sem reduzir lacunas bloqueantes (não contar lembretes ou retransmissões).
 - Ausência prolongada de responsável.
 - Pedido para aprovar fora do fluxo.
 - Conteúdo sensível ou contato não autorizado.
@@ -491,7 +507,44 @@ A conclusão exige, nesta ordem:
 9. Encerramento do ticket.
 10. Soldado em `COMPLETED`.
 
-Alteração material após aprovação invalida as aprovações afetadas e cria nova versão. Não permitir concluir se a versão aplicada divergir da aprovada.
+Qualquer edição do conteúdo candidato ou dos testes de aceite após aprovação cria nova revisão e invalida ambas as aprovações. Nova evidência que contradiga requisito aprovado também invalida ambas e bloqueia a aplicação. Notas administrativas que não alterem requisitos, conteúdo ou testes não invalidam. Não permitir concluir se a versão aplicada divergir da aprovada.
+
+## 3.15 Contrato executável do formulário e testes de regra
+
+O simulador aceita `schema_version=1`, IDs estáveis de seção/campo/opção e tipos `text`, `number`, `select`, `attachment`. Rótulos são apresentação, nunca identidade. Campos têm `id`, `section_id`, `type`, `label`, `help_text`, `required`, `active`; opções usam `{id,label}`. Anexos declaram `accepted_formats` e `max_size_bytes`. Limites iniciais: 100 campos e 50 regras por formulário.
+
+Exemplo mínimo de conteúdo candidato (versão/hash são metadados externos ao conteúdo):
+
+```json
+{
+  "schema_version": 1,
+  "sections": [{"id": "atividade", "label": "Atividade"}],
+  "fields": [
+    {"id": "ramo", "section_id": "atividade", "type": "select", "label": "Ramo", "help_text": "", "required": true, "active": true, "options": [{"id": "alimentacao", "label": "Alimentação"}, {"id": "outro", "label": "Outro"}]},
+    {"id": "licenca", "section_id": "atividade", "type": "attachment", "label": "Licença", "help_text": "", "required": false, "active": true, "accepted_formats": ["application/pdf"], "max_size_bytes": 10485760}
+  ],
+  "rules": [{"id": "exigir_licenca", "when": {"op": "eq", "field_id": "ramo", "value": "alimentacao"}, "effect": {"op": "require", "field_id": "licenca"}}]
+}
+```
+
+- Condições usam AST tipada: `eq`, `neq`, `in`, `gt`, `gte`, `lt`, `lte`, `exists`, `and`, `or`, `not`. Comparações aceitam literal tipado OU `other_field_id`, nunca ambos. Sem coerção entre texto/número e sem `eval`, Python, JavaScript, SQL, regex arbitrária ou URLs executáveis. Profundidade máxima 8 e 100 nós por regra.
+- Campo ausente/nulo torna comparações falsas, inclusive `neq`; `exists` retorna falso. `and`/`or` exigem ao menos um argumento; `not` nega uma condição. Campo inativo não aceita entrada nem referências. Validar tipos antes de executar regras. Efeitos permitidos: `require` e `reject` com código/mensagem; nenhuma regra altera valores. Semântica única no backend, usada no preview e nos testes.
+- Operações são uma união discriminada por `op`: `rename_label`, `set_help`, `add_field`, `set_options`, `set_required`, `add_attachment`, `add_conditional_attachment`, `add_validation`, `deactivate_field`, `add_section`, `move_field`. Cada payload tem schema fechado, alvos por ID e `evidence_ids` ou `human_decision_id`. `add_conditional_attachment` cria campo e regra atomicamente. Nova etapa/fluxo e regra de negócio fora dessa AST são `requires_product_review`; exclusão física é `unsupported` no simulador, oferecendo desativação. A interface deve explicar essas fronteiras.
+- Aplicar operações em ordem sobre cópia da versão-base; validar o resultado inteiro antes de persistir. Remover opção/seção/campo referenciado falha até ajustar as dependências no mesmo ChangeSet. Sem aplicação parcial. Os schemas Pydantic e exemplos válidos/inválidos de cada operação são entregáveis da fatia 1.
+- Cada regra nova/alterada exige casos positivos, negativos e de limite quando aplicáveis; uma alteração simples de rótulo exige comparação do resultado esperado. `FormTestCase` contém entradas, resultado esperado, vínculo com requisito/evidência e revisão. O humano revisa os resultados esperados: testes sugeridos pelo mesmo LLM não constituem validação independente.
+- Executar esses testes sobre a candidata **antes** da aprovação e novamente após read-back. Registrar `FormTestRun` com hash da candidata, revisão/hash da suíte, resultados e executor. Aprovação bloqueada se faltar cobertura obrigatória ou houver falha. Read-back prova persistência; os testes comprovam comportamento apenas no recorte exercitado.
+
+## 3.16 Versões, aprovação e aplicação recuperável
+
+`FormVersion` candidata é imutável. Calcular SHA-256 do JSON UTF-8 normalizado pelo schema, com chaves ordenadas, separadores compactos, arrays em ordem preservada e números finitos normalizados pelo backend; excluir somente metadados explicitamente externos ao schema. Persistir os bytes canônicos para comparação. Preview, diff, testes e aprovação apontam para o mesmo snapshot.
+
+Cada aprovação vincula `{case_id, cycle_number, change_set_id, base_form_version_id, candidate_version_id, candidate_hash, test_suite_hash, test_run_id}` e ator/papel. Dois atores sintéticos distintos devem exercer os papéis municipal e Aprova; texto no chat e clique sem papel não aprovam. A segunda aprovação depende da primeira ainda válida. Rejeição registra justificativa e abre intervenção; revisão exige nova dupla aprovação. Revogação antes de aplicar suspende o fluxo; após aplicar abre intervenção para correção, sem apagar a decisão anterior.
+
+Na aplicação, conferir novamente permissões, lacunas, intervenções abertas, evidências recebidas ainda não processadas, aprovações, suíte e versão vigente. Atualizar o ponteiro vigente do motor simulado por comparação atômica com a versão-base esperada. Se mudou, retornar `BASE_VERSION_CONFLICT`, replanejar e obter novas aprovações; nunca sobrescrever silenciosamente. Persistir recibo único de aplicação por ChangeSet. Repetir a operação após timeout consulta/reutiliza o recibo.
+
+Read-back deve ler o armazenamento do motor, sem reutilizar a candidata em memória; comparar hash e executar testes. Divergência gera intervenção, mantém ticket aberto e proíbe rollback automático. Correção exige nova versão aprovada. Nota interna e fechamento são efeitos idempotentes ordenados; se falharem, retentar apenas o efeito pendente, sem reaplicar. Antes do fechamento, revalidar atomicamente versão vigente, recibo de verificação, aprovações e ausência de evidências/intervenções pendentes; mudança desde a verificação bloqueia fechar. `COMPLETED` exige recibos de aplicação, verificação, nota e fechamento.
+
+Um caso sem alterações usa ChangeSet vazio e snapshot de conteúdo idêntico, com teste de identidade, dupla confirmação e read-back. Todas as solicitações devem ter disposição explícita (`accepted`, `rejected` ou `withdrawn`) e justificativa; eliminar lacunas ou rejeitar pedidos não pode fabricar conclusão automática.
 
 # 4. Máquina de estados
 
@@ -532,7 +585,7 @@ COMPLETED
 - `WAITING_*` não é erro nem intervenção por si só.
 - `BLOCKED_HUMAN` sempre possui motivo e responsável.
 - `FAILED_RETRYABLE` possui próxima tentativa e limite.
-- `COMPLETED` é terminal, mas pode ser reaberto por nova solicitação, criando nova versão/ciclo.
+- `COMPLETED` é terminal para aquele ciclo; nova solicitação pode reabrir o ticket e criar outro caso/ciclo, preservando o anterior.
 - Um evento duplicado não executa efeitos novamente.
 
 ## 4.3 Agentes orientados a eventos
@@ -552,6 +605,53 @@ Ele é acionado por:
 - Retry agendado.
 
 Cada despertar executa um número limitado de ações e persiste o próximo estado.
+
+## 4.4 Transições, precedência e recuperação
+
+Implementar tabela declarativa `estado + evento + guarda → destino + efeitos`. Qualquer combinação não registrada retorna `INVALID_TRANSITION`, sem efeitos. Estados de trabalho transitórios devem persistir job/ação que permita retomada. A tabela abaixo define os caminhos; a fatia 1 deve convertê-la em testes parametrizados para cada aresta e para tentativas de bypass.
+
+| Origem | Evento/guarda | Destino e efeito |
+|---|---|---|
+| `DRAFT` | Iniciar ticket válido | `INTAKE`, fixar versão-base |
+| `INTAKE` | Ticket persistido e referência de formulário válida | `UNDERSTANDING_FORM` |
+| `UNDERSTANDING_FORM` | Schema persistido e validado | `ANALYZING_INITIAL_REPLY` |
+| `ANALYZING_INITIAL_REPLY` | Dossiê validado | `BUILDING_ROUND` se há lacunas respondíveis; `CHANGES_READY` se completo; `WAITING_OWNER` se falta responsável; `BLOCKED_HUMAN` se decisão exigida |
+| `BUILDING_ROUND` | Plano válido, destinatário autorizado e escopo definido | `ROUND_READY` |
+| `ROUND_READY` | Política permite envio | `SENDING_ROUND`, gravar entregas na outbox |
+| `SENDING_ROUND` | Ao menos um canal confirmou entrega | `WAITING_ANY_CHANNEL` na primeira rodada; `WAITING_PRIMARY_CHANNEL` nas seguintes; falha do outro canal continua registrada |
+| `WAITING_ANY_CHANNEL`, `WAITING_PRIMARY_CHANNEL` | Mensagem correlacionada | `PROCESSING_REPLY`; simples recebimento não satisfaz lacunas nem cancela prazo |
+| `PROCESSING_REPLY` | Evidências validadas | `RECONCILING_RESPONSES` |
+| `RECONCILING_RESPONSES` | Sem conflito | `CHANGES_READY`, `BUILDING_ROUND` ou volta à espera da rodada incompleta; conflito abre lacuna `disputed` e `BLOCKED_HUMAN` |
+| `WAITING_OWNER` | Solicitar indicação | `WAITING_REFERRAL`, enviar apenas pedido de responsável |
+| `WAITING_REFERRAL` | Contato identificado, autorizado e com papel/escopo | `BUILDING_ROUND`; indicação não autorizada mantém espera |
+| `CHANGES_READY` | Candidata, diff e testes válidos; sem bloqueios | `READY_FOR_APPROVAL` |
+| `READY_FOR_APPROVAL` | Pedido municipal registrado | `WAITING_MUNICIPAL_APPROVAL` |
+| `WAITING_MUNICIPAL_APPROVAL` | Aprovação municipal válida | `WAITING_IMPLANTER_APPROVAL` |
+| `WAITING_IMPLANTER_APPROVAL` | Aprovação Aprova válida | `APPLYING`, guardas da seção 3.16 rechecadas na transação |
+| `APPLYING` | Recibo de aplicação persistido | `VERIFYING` |
+| `VERIFYING` | Read-back/testes/nota/fechamento confirmados | `COMPLETED` |
+| Qualquer estado ativo anterior à aplicação | Rejeição, revogação ou evidência material nova | Invalidar aprovações; `PROCESSING_REPLY` para evidência, `BLOCKED_HUMAN` para decisão |
+| Estado ativo não terminal | Pausa ou assumir conversa | `PAUSED` com `resume_state`; suspender novos envios e trabalhos autônomos |
+| `PAUSED`, `BLOCKED_HUMAN` | Retomar/resolver autorizado | Revalidar guardas e pendências; voltar a estado seguro calculado, não a destino escolhido pelo cliente |
+| Estado de trabalho | Erro transitório | `FAILED_RETRYABLE`, com ação, destino seguro, prazo e tentativas |
+| `FAILED_RETRYABLE` | Prazo atingido e limite disponível | Retentar a mesma ação idempotente; se limite excedido, `BLOCKED_HUMAN` |
+| Estado ativo | Erro de integridade não recuperável | `FAILED_PERMANENT`, intervenção e diagnóstico; reprocessar somente por decisão humana após correção |
+| `FAILED_PERMANENT` | Correção comprovada e reprocessamento autorizado por decisão humana | `BLOCKED_HUMAN` para revalidar pendências e escolher retomada segura; nunca repetir efeito sem consultar recibos |
+| `COMPLETED` | Nova solicitação substantiva confirmada | Preservar ciclo concluído e criar outro `ValidationCase` em `INTAKE`; recibo/agradecimento não reabre |
+
+Precedência: pausa/intervenção e evidência pendente bloqueiam novos efeitos; divergência e revogação bloqueiam aprovação/aplicação; trabalho de consolidação precede geração de nova rodada. Recebimentos são sempre persistidos, inclusive em pausa, falha ou conclusão. Anexos pendentes bloqueiam aprovação até processamento ou decisão humana fundamentada sobre sua irrelevância. Resposta que chega durante a aplicação é serializada: se entrou antes do commit, impede aplicar; se entrou depois, impede fechamento e abre intervenção de correção. Não desfazer efeito já confirmado.
+
+Pausa durante efeito em curso não promete cancelamento retroativo: registrar recibo e checkpoint, suspender o próximo efeito e informar isso na UI. `FAILED_PERMANENT` não descarta mensagens. Resolver intervenção não equivale a aprovar nem remove automaticamente outras intervenções abertas.
+
+## 4.5 Rodadas, correlação e prazos
+
+- Para simplificar o MVP, permitir **uma rodada ativa por caso**, destinada a um contato/papel e escopo. Assuntos de outros responsáveis ficam em rodadas planejadas sequenciais. A mesma rodada pode ter entregas nos dois canais. `current_round_id` é projeção; não identifica automaticamente a rodada de qualquer resposta tardia.
+- Guardar `primary_channel` por destinatário no caso; o campo no caso é só resumo da rodada atual. Preferência explícita autorizada prevalece; sem preferência, vence a primeira evidência substantiva validada na ordem de sequência persistida pelo servidor. Outro canal continua recebendo complementos.
+- No simulador, escolher conversa e `reply_to_round_id` explicitamente. Se uma mensagem não puder ser correlacionada sem ambiguidade, persistir com `round_id=null` e pedir triagem humana. Nunca associar automaticamente uma mensagem atrasada à rodada mais recente. Validar que mensagem, contato, rodada e caso pertencem ao mesmo escopo.
+- Reavaliar lacunas abertas e respostas anteriores contraditas por nova evidência; manter origens e histórico. Uma divergência pode reabrir lacuna respondida. Usar janela de consolidação de 2 segundos após o último recebimento, limitada a 10 segundos desde o primeiro, antes de emitir novo pacote. Isso agrupa rajadas, mas não torna respostas tardias inválidas.
+- A primeira resposta útil cancela lembretes ainda não enviados dos canais secundários; não cancela os demais itens da rodada. Rodada só fica `completed` quando todos os itens obrigatórios têm resposta validada ou disposição humana explícita. Rodada `superseded` preserva itens, versões, entregas e evidências.
+- Política global da demo: primeiro lembrete após 24 horas sem resposta substantiva, segundo após mais 24 horas e intervenção após mais 24 horas. Resposta parcial reinicia prazo apenas dos itens restantes. Máximo de dois lembretes por rodada, com fallback somente para canal autorizado quando o principal falhar/esgotar tentativas. Esses valores são parâmetros demonstrativos, não SLA real.
+- Prazos usam relógio de negócio UTC injetável; o simulador pode avançá-lo. Leases e timeouts técnicos usam relógio real separado. Pausa suspende lembretes; ao retomar recalcular a partir do saldo restante, sem disparar lembretes acumulados. Jobs obsoletos são cancelados antes de enviar.
 
 # 5. Arquitetura técnica obrigatória
 
@@ -588,7 +688,7 @@ flowchart TD
 - Pydantic v2.
 - SQLAlchemy 2.
 - SQLite para execução local.
-- Migrações com Alembic ou SQL inicial versionado.
+- Migrações com Alembic, incluindo banco vazio → schema atual.
 - Worker local usando fila persistida no banco.
 - Pytest.
 
@@ -597,7 +697,7 @@ flowchart TD
 - React.
 - TypeScript.
 - Vite.
-- CSS/Tailwind, conforme setup escolhido e documentado.
+- CSS com variáveis de tema; Tailwind não é necessário para a primeira entrega.
 - SVG/CSS para o mapa; não exigir engine de jogo.
 - Testes de componentes quando úteis e Playwright para o fluxo principal.
 
@@ -640,6 +740,28 @@ web/          interface React
 
 O domínio não pode importar FastAPI, React ou SDK de LLM.
 
+## 5.4 Transações, fila e limites de execução
+
+Usar um processo API e um worker local; fila, inbox, outbox e simuladores no SQLite. Configurar WAL na inicialização, `foreign_keys=ON` em cada conexão, `busy_timeout=5000` e transações curtas explícitas. SQLite serializa escritores; WAL não oferece múltiplos escritores simultâneos. Não manter transação aberta durante chamada LLM, espera de rede ou leitura pesada de anexos. Referências: [isolamento SQLite](https://www.sqlite.org/isolation.html), [foreign keys](https://www.sqlite.org/foreignkeys.html) e [transações SQLAlchemy/SQLite](https://docs.sqlalchemy.org/en/20/dialects/sqlite.html).
+
+1. Recepção: validar envelope e escopo; em uma transação persistir evento único, mensagem/metadados, revisão do caso e job. Confirmar recebimento somente após commit. Repetição de chave com mesmo hash retorna resultado anterior; mesma chave com payload diferente retorna `IDEMPOTENCY_CONFLICT`.
+2. Trabalho: adquirir job por atualização condicional atômica (`pending`/lease vencido → `running`, token de lease). Lease de 120 segundos, renovação a cada 30; apenas quem possui o token atual pode concluir. Validar revisão do caso ao persistir saída do agente; resultado obsoleto é descartado e replanejado, nunca sobreposto.
+3. Conclusão: gravar propostas, estado, auditoria, novos jobs/outbox e job concluído na mesma transação. Guardas de aplicação e fechamento também conferem a revisão/pendências atuais. API usa concorrência otimista para mutações humanas.
+4. Entrega: outbox também usa claim/lease e chave por `{case,cycle,round,revision,recipient,channel,part,kind}`. O simulador receptor possui recibo único pela chave. Se o worker cair depois do efeito e antes do ACK, repetir retorna o recibo anterior. A garantia é entrega com repetição possível e efeito idempotente, não transporte exatamente uma vez.
+5. Inicialização recupera leases vencidos, jobs agendados e efeitos sem ACK. Retry transitório: três tentativas totais, esperas de 1 e 5 segundos; erro de validação/permissão não retenta. Quando todos os canais falham, abrir intervenção; sucesso parcial mantém espera no canal entregue e evidencia a falha restante.
+
+Cada despertar executa no máximo 10 ações e duas chamadas LLM; timeout de 30 segundos por chamada, resposta estruturada limitada a 32 KiB. Ao esgotar orçamento com progresso, persistir continuação; sem progresso, abrir intervenção. Erro repetido de schema após uma correção também abre intervenção. Limite inicial de 200 mil caracteres de evidências por análise; excesso exige seleção/segmentação rastreável ou revisão humana, nunca truncamento silencioso. São limites de engenharia da demo a validar na fatia 1, não características prometidas do provedor.
+
+## 5.5 Segurança mínima da demonstração
+
+- Bind API/frontend em `127.0.0.1`; CORS apenas para a origem local documentada. `APP_ENV=demo` obrigatório para troca de persona, reset, seed e avanço de relógio; rejeitar esses controles fora da demo. Ambiente compartilhado exige projeto próprio de autenticação e operação.
+- Criar sessão local com ator sintético escolhido no painel da demo e token aleatório; manter atribuições no servidor. O backend deriva papéis da sessão, nunca de `approver_role` enviado pelo cliente. A troca livre de persona é ferramenta do demonstrador, explicitamente visível, e não autenticação produtiva.
+- Leitura/escrita valida município, processo, contato e escopo em cada acesso. Aprovador municipal aprova apenas processo atribuído; aprovador Aprova precisa de atribuição explícita. Implantador sem esse papel não aprova. Contato indicado não herda aprovação. Somente operador da demo faz reset/seed. Worker usa contexto de serviço limitado às políticas; LLM nunca recebe token da sessão.
+- Upload: máximo 10 MiB por arquivo e 5 anexos por mensagem; allowlist de TXT, MD, JSON, PDF, PNG, JPEG, WAV e MP3, verificando tipo e conteúdo compatível. Sem ZIP, HTML ou SVG ativo. Gerar nome interno aleatório, impedir traversal e manter arquivo fora da raiz pública. Download por ID autorizado; textos como texto escapado, sem HTML de mensagens/modelo. [Referência: OWASP File Upload](https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html).
+- Persistir upload em staging limitado, calcular hash, promover atomicamente a caminho interno e então registrar metadados/job; se falhar o commit, limpar órfão em manutenção. Arquivo incompleto nunca vira evidência. Sidecar de OCR/transcrição referencia hash do original e recebe etiqueta simulada; ausência de suporte é erro explícito/revisão, não conteúdo vazio considerado válido.
+- Anexos e mensagens são dados não confiáveis. Separar instruções e conteúdo, validar toda chamada/saída e escopo de evidências, proibir execução/download de URLs sugeridas pelo modelo. Detecção de prompt injection pode abrir intervenção, mas não substitui autorização determinística; não prometer detectar todo ataque. [Referência: OWASP Prompt Injection](https://cheatsheetseries.owasp.org/cheatsheets/LLM_Prompt_Injection_Prevention_Cheat_Sheet.html).
+- Logs incluem IDs, estado anterior/novo, ação, adaptador, latência, tentativas e código de erro, sem chaves nem conteúdo integral desnecessário. Contexto de um município nunca inclui evidências do outro. Não registrar raciocínio privado do modelo; registrar justificativas curtas, fontes e decisões de política.
+
 # 6. Modelo de dados mínimo
 
 Implementar índices, foreign keys e timestamps UTC. IDs podem ser UUID. JSON deve ser validado antes de persistir.
@@ -652,11 +774,11 @@ Implementar índices, foreign keys e timestamps UTC. IDs podem ser UUID. JSON de
 | `FormTemplate` | `id`, `name`, `schema_json`, `version` |
 | `FormVersion` | `id`, `process_id`, `version`, `schema_json`, `status`, `base_version_id`, `content_hash` |
 | `Ticket` | `id`, `external_key`, `process_id`, `description`, `initial_reply`, `form_url`, `status` |
-| `ValidationCase` | `id`, `ticket_id`, `process_id`, `soldier_name`, `state`, `current_round_id`, `primary_channel`, `version` |
+| `ValidationCase` | `id`, `ticket_id`, `process_id`, `cycle_number`, `previous_case_id`, `soldier_name`, `state`, `resume_state`, `current_round_id`, `primary_channel` (projeção), `version`, `next_action_at` |
 | `ChangeRequest` | `id`, `case_id`, `source_quote`, `interpreted_intent`, `clarity`, `feasibility`, `risk`, `status`, `next_action` |
-| `EvidenceLink` | `id`, `change_request_id`, `message_id`, `attachment_id`, `quote`, `locator` |
+| `EvidenceLink` | `id`, `case_id`, `change_request_id`, `message_id`, `attachment_id`, `derived_artifact_id`, `human_decision_id`, `quote`, `locator`, `source_hash` |
 | `Gap` | `id`, `change_request_id`, `description`, `required_input`, `required_role`, `blocking`, `status`, `resolved_by` |
-| `ValidationRound` | `id`, `case_id`, `objective`, `status`, `version`, `assigned_role`, `completion_criteria_json` |
+| `ValidationRound` | `id`, `case_id`, `objective`, `status`, `version`, `assigned_role`, `recipient_contact_id`, `scope_json`, `primary_channel`, `completion_criteria_json`, `due_at`, `reminder_count` |
 | `RoundItem` | `id`, `round_id`, `gap_id`, `change_request_id`, `sequence`, `status` |
 | `Contact` | `id`, `municipality_id`, `name`, `department`, `phone_alias`, `preferred_channel`, `is_synthetic` |
 | `RoleAssignment` | `id`, `process_id`, `contact_id`, `role`, `can_answer`, `can_approve`, `scope_json`, `status` |
@@ -666,13 +788,17 @@ Implementar índices, foreign keys e timestamps UTC. IDs podem ser UUID. JSON de
 | `Attachment` | `id`, `message_id`, `filename`, `mime_type`, `sha256`, `storage_path`, `processing_status` |
 | `DerivedArtifact` | `id`, `attachment_id`, `kind`, `content`, `adapter`, `is_simulated`, `confidence` |
 | `FormChangeSet` | `id`, `case_id`, `base_form_version_id`, `operations_json`, `status`, `validation_json`, `result_form_version_id` |
-| `Approval` | `id`, `change_set_id`, `form_version_id`, `approver_contact_id`, `approver_role`, `decision`, `rationale`, `created_at` |
+| `Approval` | `id`, `case_id`, `cycle_number`, `change_set_id`, `base_form_version_id`, `form_version_id`, `candidate_hash`, `test_suite_hash`, `test_run_id`, `approver_contact_id`, `approver_role`, `decision`, `rationale`, `created_at`, `invalidated_at`, `invalidation_reason` |
 | `Intervention` | `id`, `case_id`, `reason_code`, `summary`, `context_json`, `status`, `assigned_to`, `resolution` |
 | `AgentAction` | `id`, `case_id`, `action_type`, `payload_json`, `policy_decision`, `status`, `error_code` |
 | `IntegrationEvent` | `id`, `source`, `external_key`, `payload_json`, `processed_at`, `processing_hash` |
 | `OutboxMessage` | `id`, `case_id`, `channel`, `round_id`, `payload_json`, `status`, `idempotency_key`, `attempts`, `next_attempt_at` |
 | `AuditEvent` | `id`, `case_id`, `actor_type`, `actor_id`, `event_type`, `payload_json`, `created_at` |
 | `EvaluationRun` | `id`, `fixture`, `adapter`, `metrics_json`, `evidence_class`, `created_at` |
+| `WorkItem` | `id`, `case_id`, `event_id`, `kind`, `payload_json`, `status`, `available_at`, `attempts`, `lease_token`, `lease_expires_at`, `last_error` |
+| `HumanDecision` | `id`, `case_id`, `actor_id`, `kind`, `scope_json`, `rationale`, `evidence_ids`, `created_at` |
+| `FormTestCase` / `FormTestRun` | Casos/revisões, requisito/evidência, entradas e esperado; execução com candidata/hash, hash da suíte, resultados e data |
+| `EffectReceipt` | `id`, `effect_kind`, `idempotency_key`, `case_id`, `change_set_id`, `result_json`, `created_at`; inclui envio, aplicação, verificação, nota e fechamento |
 
 Regras adicionais:
 
@@ -681,6 +807,12 @@ Regras adicionais:
 - Aprovação referencia `form_version_id`, não apenas `case_id`.
 - Toda decisão automática registra `adapter`, modelo e versão do prompt.
 - Não armazenar telefones reais; usar aliases sintéticos.
+
+Adicionar a outbox os campos de destinatário, revisão, parte, lease/token e último erro; adicionar aos eventos `case_id`, `sequence` de recepção no servidor, `occurred_at`, `received_at`, `schema_version`, `correlation_id` e `causation_id`. Horário informado pelo canal não determina sozinho a ordem de execução.
+
+Restrições obrigatórias: um ciclo ativo por ticket; `(ticket_id, cycle_number)` único; uma rodada ativa por caso; `(process_id, version)` único; no máximo um candidato em aprovação por caso. Aprovações históricas são append-only, com invalidação explícita. Índices por `(status, available_at)`, `(case_id, sequence)` e FKs de escopo. O ponteiro de formulário vigente fica no processo/motor, separado da candidata. SQLite deve recusar FK inválida nos testes de integração.
+
+`EvidenceLink` aponta para uma origem verificável: mensagem, artefato extraído ou decisão humana. Para texto, usar offsets `[start,end)` em pontos de código Unicode no texto persistido imutável; `quote` deve coincidir exatamente, sem normalização silenciosa. A UI converte offsets para destacar corretamente acentos e emojis. PDF pode acrescentar página, mas citação é verificada no artefato extraído. Correção de interpretação cria revisão, nunca reescreve a origem. Não deduplicar conteúdo entre casos/contatos apenas por hash; eventos iguais usam chave do provedor, e fontes independentes preservam proveniência.
 
 # 7. Contrato do agente genérico
 
@@ -773,6 +905,12 @@ COMPLETE_CASE
 
 Ações de escrita sempre passam pelo motor de políticas.
 
+## 7.5 Envelope das propostas
+
+Toda resposta do adaptador tem `schema_version`, `case_id`, `expected_case_version`, `action_type` e `payload` tipado pela ação. O backend acrescenta `adapter`, `model`, `prompt_version`, `catalog_version`, `input_hash`, `request_id` e resultado de validação; metadados declarados pelo próprio modelo não são autoridade. `extra=forbid`, limites de tamanho/quantidade e referências válidas fazem parte do contrato Pydantic. Confiança declarada pelo modelo é informação auxiliar, não permissão para executar.
+
+O adaptador recebe somente ferramentas e evidências do caso autorizado. Uma proposta com qualquer referência inválida não produz efeitos parciais; registrar rejeição e seguir a política limitada de correção/intervenção. Replay passa pelo mesmo validador de saída e pelas mesmas políticas. Formatos específicos de structured output do provedor são responsabilidade do adaptador, sem alterar domínio nem aceitar JSON inválido como sucesso.
+
 # 8. Política de autonomia
 
 | Ação | Autonomia inicial |
@@ -791,7 +929,7 @@ Ações de escrita sempre passam pelo motor de políticas.
 | Responder consultoria fora de playbook | Humano |
 | Resolver conflito institucional/jurídico | Humano |
 | Aprovar pela prefeitura | Pessoa autorizada |
-| Aprovar pela Aprova | Implantador |
+| Aprovar pela Aprova | Pessoa com papel explícito de aprovador Aprova no processo |
 | Aplicar versão | Automática somente após dupla aprovação |
 | Encerrar ticket | Automática somente após read-back válido |
 
@@ -867,6 +1005,8 @@ POST /api/change-sets/{id}/municipal-approval
 POST /api/change-sets/{id}/implanter-approval
 POST /api/change-sets/{id}/apply
 POST /api/change-sets/{id}/verify
+POST /api/change-sets/{id}/tests/run
+GET  /api/change-sets/{id}/tests
 ```
 
 ## 9.6 Intervenções e avaliação
@@ -879,6 +1019,17 @@ POST /api/interventions/{id}/take-over
 POST /api/evaluations/run
 GET  /api/evaluations/{id}
 ```
+
+## 9.7 Contrato HTTP e comandos humanos
+
+- Toda mutação recebe `Idempotency-Key`; operações sobre caso existente também recebem `expected_case_version`. A chave é única por `(actor_or_service, operation, resource, idempotency_key)` e compara payload normalizado. Validar identidade, permissão e escopo antes de consultar o resultado anterior; mesma chave/mesmo corpo recupera esse resultado antes de rejeitar a revisão já consumida pelo sucesso original. Corpo divergente retorna 409. Para comando novo, validar revisão e todas as guardas no serviço compartilhado por HTTP e worker.
+- Retornar 202 + `operation_id` para ações agendadas; `GET /api/operations/{id}` informa `pending|running|succeeded|failed`, resultado e erro. `GET /api/health` informa saúde do processo; `/api/demo/runtime` informa versão de migração, seed, adaptador e heartbeat do worker. Worker parado não pode ser exibido como sistema operacionalmente pronto.
+- Erro padronizado: `{code,message,details,request_id,retryable}`. Usar 403 para papel insuficiente, 404 para recurso fora do escopo, 409 para revisão/estado conflitante, 413 para excesso de tamanho e 422 para schema inválido. Não expor stack traces.
+- Listagens paginam com `limit` (padrão 50, máximo 100), `cursor`, filtro municipal/processo e ordenação estável por ID além do timestamp. UI atualiza por polling a cada 2 segundos enquanto visível; não exigir WebSocket.
+- `POST /api/cases/{id}/decisions` aceita comandos tipados para revisar interpretação, atribuir responsável e resolver disposição de solicitação. `POST /api/cases/{id}/change-sets` cria nova candidata a partir de edição humana com justificativa; nunca edita snapshot aprovado. Rejeição/revogação usa endpoints de aprovação com `decision=reject|revoke`, guardas e auditoria. Intervenção resolvida referencia `HumanDecision`.
+- `POST /api/demo/session` escolhe persona sintética; `POST /api/demo/clock/advance` altera somente relógio de negócio. Uploads são multipart, vinculados à mensagem; `GET /api/attachments/{id}` entrega arquivo após autorização. Anexar a comentários/notas distingue público de interno; notas internas nunca são encaminhadas à prefeitura.
+- `POST /api/tickets/{id}/close`, `apply` e `verify` não são atalhos: apenas solicitam as mesmas ações autorizadas. `wake` não retira pausa, não aprova e não pula guardas. `reset` exige operador, confirmação explícita e worker suspenso; atua somente em banco/anexos sintéticos da demo com caminhos validados, nunca em um diretório informado livremente.
+- Publicar OpenAPI e exemplos de entrada/saída/erro gerados dos modelos Pydantic na fatia 1. O frontend não inventa valores de enum. Registrar no README quais rotas estão implementadas por fatia; a lista acima é contrato de destino, não evidência de disponibilidade.
 
 # 10. Interface web
 
@@ -981,6 +1132,14 @@ Mostrar objetivo, conteúdo enviado por canal, itens, critérios de completude, 
 
 O Pylon e o WhatsApp devem ser acessíveis durante a demo sem expor controles técnicos desnecessários na tela principal. Disponibilizar um “modo apresentação” e um “modo simulação”.
 
+## 10.9 Aceite de uso e estados de interface
+
+Mostrar no mapa apenas código, estado escrito/ícone e indicação de bloqueio de cada soldado; detalhes ficam no painel selecionado. Lista e mapa compartilham busca, filtros e contagens. Os 140 processos devem ser localizáveis sem depender de hover, animação ou zoom. Distinguir visualmente processo sem execução de processo concluído; verde em execução não equivale a sucesso.
+
+Todas as telas precisam de estados carregando, vazio, sem resultados, erro recuperável e dados desatualizados. Mostrar último refresh e worker parado; preservar rascunhos após falha. Desabilitar aprovação enquanto dados/testes estiverem desatualizados, explicar o bloqueio e tratar 409 recarregando a versão sem reenviar a aprovação automaticamente. Exibir versão/hash resumido e resultados dos testes junto à decisão.
+
+Aceite manual: fluxo principal por teclado, foco visível, rótulos de ações, estados além de cor, redução de movimento, zoom a 200% e dossiê em uma coluna em tela estreita. Clicar/acionar uma evidência leva à fonte e permite voltar. Para a demo, medir em máquina identificada: lista/mapa dos 140 processos em até 2 segundos após dados recebidos e atualização de estado em até 3 segundos após commit; registrar resultado, não presumir cumprimento.
+
 # 11. Cenários obrigatórios
 
 ## Cenário A — Resposta inicial confusa e rodada agrupada
@@ -1039,10 +1198,11 @@ Resultado esperado:
 
 ## Cenário F — Formulário nunca visto
 
-- Novo schema sem qualquer instrução manual.
-- Mesmo agente e mesmo código.
-- Dossiê e primeira rodada são gerados.
-- Teste prova configuração zero.
+- Novo schema e resposta livre reservados, sem instrução por formulário e sem fixture de replay correspondente.
+- Mesmo agente, código, prompt-base e catálogo congelados antes da revelação das entradas.
+- Dossiê e primeira rodada gerados com inferência ao vivo; salvar modelo, hashes de entrada/configuração e saída bruta validada, sem segredos.
+- Verificar citações, intenções e lacunas contra gold conforme seção 16.3. Schema válido sozinho não aprova interpretação.
+- Em `offline_replay`, mostrar `not_run: LIVE_INFERENCE_REQUIRED`. Falta de credenciais não reprova o fluxo offline nem aprova generalização. Entrada manual comprova somente o fluxo manual.
 
 ## Cenário G — Aprovação, aplicação e read-back
 
@@ -1051,7 +1211,7 @@ Resultado esperado:
 - Aprova aprova versão N.
 - Sistema aplica e verifica.
 - Ticket fecha.
-- Tentativa de alterar após aprovação cria nova versão e invalida aprovações afetadas.
+- Tentativa de alterar candidata/testes após aprovação cria nova revisão e invalida ambas as aprovações.
 
 ## Cenário H — Falhas e adversários
 
@@ -1089,7 +1249,7 @@ Seed:
 
 - Duas implantações.
 - 70 processos por implantação para escala visual.
-- Oito cenários completos descritos acima.
+- Fixtures reexecutáveis para A–E, G e H, e conjunto reservado para F fora do seed/replay. O catálogo lista A–H com disponibilidade e resultado por modo de IA.
 - Contatos centrais, setoriais e aprovadores.
 - Tickets, formulários e anexos.
 - Métricas calculadas somente sobre execuções reais do simulador, separadas do seed visual.
@@ -1284,6 +1444,31 @@ Metas obrigatórias nos testes:
 - Zero instruções de anexos alterando políticas do sistema.
 - Zero prompts específicos por formulário.
 
+## 15.6 Casos de regressão dos contratos
+
+Estes testes são requisitos a implementar, não testes já executados:
+
+| ID | Preparação/falha | Resultado obrigatório |
+|---|---|---|
+| T01 | Dois comandos com mesma revisão do caso | Um commit; o segundo recebe conflito e não sobrescreve estado |
+| T02 | Queda após envio e antes do ACK; repetir evento | Uma mensagem visível por entrega/parte, mesmo recibo na recuperação |
+| T03 | Queda após aplicação e antes de persistir ACK do job | Uma aplicação; retomar por recibo, verificar e fechar uma vez |
+| T04 | Evidência contraditória entre aprovação e aplicação | Ambas invalidadas; aplicação bloqueada e fonte preservada |
+| T05 | Motor mudou versão-base antes da aplicação | Conflito explícito; versão vigente preservada |
+| T06 | Read-back divergente, testes ausentes ou falhando | Aprovação/fechamento impedidos conforme etapa; intervenção rastreável |
+| T07 | Mensagem tardia, rodada sem correlação, mesmo texto de dois autores | Histórico preservado; sem atribuição arbitrária ou perda de proveniência |
+| T08 | Pausa, relógio avançado, reinício e retomada | Nenhum envio durante pausa; nenhuma rajada de lembretes acumulados |
+| T09 | Papel errado, ID de outro município ou nota interna no repasse | Acesso/efeito negado; nenhuma exposição entre escopos |
+| T10 | Upload malicioso, citação com emoji, tentativa de instruir o agente | Arquivo inseguro recusado; citação exata; nenhuma política alterada |
+| T11 | Um canal falha e o outro entrega; ambos falham | Sucesso parcial rastreável no primeiro caso; intervenção no segundo após limite |
+| T12 | Caso sem mudanças, aprovação rejeitada, nova solicitação após conclusão | Fluxos explícitos da seção 3.16/4.4; ciclo anterior imutável |
+| T13 | Replay recebe entrada desconhecida ou avaliação F sem credenciais | Erro de replay explícito; F `not_run`, nunca saída fabricada ou PASS |
+| T14 | Job com lease vencido termina após outro worker adquirir | Resultado antigo não confirma job nem duplica efeito |
+| T15 | Dois tickets do mesmo processo; segunda versão aplicada entre read-back e fechamento do primeiro | Primeiro fechamento bloqueado por versão vigente divergente; nenhum recibo antigo autoriza concluir |
+| T16 | Reuso de chave HTTP por outro ator/recurso; retry legítimo após revisão incrementada | Sem acesso a resposta alheia; retry legítimo retorna resultado original sem repetir efeito |
+
+Usar SQLite em arquivo temporário para testes de concorrência/reinício, não apenas mocks ou banco em memória. Injetar quedas antes/depois do commit e antes/depois do efeito. Esperas E2E observam estados/recibos com timeout; não usar sleeps fixos para simular sucesso.
+
 # 16. Métricas
 
 ## 16.1 Métricas técnicas da demonstração
@@ -1319,6 +1504,18 @@ Não alegar resultado real no hackathon:
 
 Toda métrica local deve carregar `evidence_class = benchmark_local_sintetico`.
 
+## 16.3 Protocolo de avaliação e critérios de aceite
+
+Priorizar dois indicadores de produto: **cobertura auditável** (solicitações aceitas com evidência válida, testes aprovados e dupla aprovação ÷ solicitações aceitas) e **rodadas substantivas até aprovação** para o mesmo pacote de entradas. Exibir também total inicial, rejeitado, retirado e ainda pendente para impedir ganho artificial por exclusão de pedidos. Contar cada rodada uma vez, independentemente de canais, partes ou lembretes.
+
+- Versionar manifesto de avaliação com fixture, cenário, modo permitido, gold, hashes de código/prompt/catálogo, avaliador e resultado esperado. Gold e `held_out` não entram no contexto do agente nem em ferramentas de runtime; apenas o runner injeta entradas e compara saídas. Replay só acessa gravações explicitamente permitidas para seu modo.
+- Comparar intenções por combinação de operação, campo/assunto alvo e evidência, com correspondência um a um; duplicatas contam como falso positivo. Intenção ambígua tem gold de lacuna, sem exigir operação inventada. Divergências semânticas do comparador exigem revisão humana registrada; não usar o mesmo LLM como único juiz.
+- Baseline fixo: mesma entrada/evidências e ordem de respostas, um item por rodada; comparar com agrupamento sem antecipar respostas ausentes. Reportar contagens por caso e total; comparação é roteirizada, não experimento com prefeituras. Latência de replay não mede produtividade humana.
+- F usa no mínimo três formulários reservados com IDs/combinações novos: um suportado, um com ambiguidade/condição incompleta e um com capacidade que exige revisão. Cada entrada contém ao menos três intenções. Congelar gold e limiares antes de executar; executar três vezes por entrada, reportando todas as nove execuções e falhas, sem selecionar a melhor.
+- Metas iniciais de engenharia para F: precisão de intenções ≥ 90%, recall ≥ 80% no agregado; 100% das citações e referências válidas; 100% das lacunas bloqueantes do gold detectadas; zero ações proibidas em todas as execuções. Limiar é critério do projeto, não resultado medido nem garantia estatística. Falha exige ajuste e novo conjunto reservado para nova alegação, mantendo resultados anteriores.
+- Denominador zero é `N/A`, nunca 100%. Guardar numeradores, denominadores, casos falhos e `passed|failed|not_run`. Separar replay, inferência ao vivo e entrada humana. Casos só semeados não entram em métricas; cenários iniciados que falham não podem desaparecer do denominador aplicável.
+- Gerar `artifacts/evaluation-<run_id>.json` e resumo legível com data, commit, máquina, duração, modos, contagens e limitações. A–E/G/H devem passar integralmente na demo offline; F só recebe PASS com execução ao vivo conforme este protocolo.
+
 # 17. Modos de execução
 
 ## 17.1 Modo padrão sem credenciais
@@ -1334,6 +1531,8 @@ ATTACHMENT_DIR=./var/attachments
 - Replay identificado na interface e nos logs.
 - Replay falha explicitamente para entradas desconhecidas.
 - Motor, políticas, banco, API, canais, aprovações e testes continuam reais.
+- Resolver caminhos relativos a partir da raiz do projeto, independentemente do diretório de lançamento. Criar `var/` antes de abrir o banco; documentar a URL SQLAlchemy acima e manter banco/anexos fora do git.
+- Replay indexa entrada/contexto normalizados e versões de schema/prompt; gravações são fixtures de teste, não instruções por formulário. Chave desconhecida produz `REPLAY_MISS`, intervenção e indicação na interface.
 
 ## 17.2 Modo com LLM ao vivo
 
@@ -1350,6 +1549,7 @@ LLM_MODEL=
 - Structured output com validação.
 - Timeout, retry limitado e erro explícito.
 - Não fazer fallback silencioso para replay.
+- Para F, a configuração de inferência é obrigatória; o provedor/modelo ainda será escolhido e validado antes desse gate. Falha de autenticação, timeout ou incompatibilidade de structured output aparece no relatório; nunca marcar F aprovado ou ignorado silenciosamente.
 
 # 18. Comandos e documentação de execução
 
@@ -1371,6 +1571,10 @@ make verify
 
 Se `make` não for adequado ao ambiente, documentar comandos Python/NPM diretos. Não exigir Docker.
 
+Na primeira fatia, fixar versões de dependências em lockfiles e registrar Python/Node/package manager efetivamente testados. `setup` instala dependências e navegadores de teste; pode precisar de internet nessa fase. Após setup, `demo` em replay não requer rede nem credenciais. `dev` inicia API, worker e frontend; `seed` é idempotente e não apaga progresso; `reset` é explicitamente destrutivo apenas para dados sintéticos e exige confirmação. `verify` roda instalação/seed/testes/build/smoke em diretório e banco descartáveis, com código de saída não zero em falha. `evaluate` emite o gate solicitado (`offline` ou `generalization`); F ausente deixa o segundo inconcluso e retorna código não zero.
+
+README e INSTRUCTIONS nascem na fatia 1. Cada ação do agente registra o identificador e a versão/hash da instrução correspondente; demonstrar de onde o prompt-base foi carregado. Não duplicar instruções divergentes entre código e Markdown. Incluir workflow de CI para testes backend, build/typecheck frontend e E2E offline com logs/relatórios anexados, sem chave de LLM obrigatória.
+
 README deve explicar:
 
 1. Problema.
@@ -1391,118 +1595,35 @@ README deve explicar:
 
 # 19. Sequência obrigatória de implementação
 
-Não começar pelo mapa ou pela estética.
+Implementar por fatias verticais; o catálogo de seções não é uma ordem horizontal de construção. Cada fatia deixa uma execução demonstrável, testes e documentação. Os módulos abaixo são responsabilidades, não exigência de criar um arquivo/abstração para cada conceito.
 
-## Etapa 1 — Contratos e domínio
+| Ordem/fatia | Objetivo e áreas incluídas | Fora desta fatia | Risco principal | Aceite e verificação | Dependência |
+|---|---|---|---|---|---|
+| 1 — Um ciclo completo | Contratos executáveis das seções 3–9, migração/seed mínimo, ticket, um formulário e ChangeSet com condição, replay conhecido, evidências, UI simples de diff/testes, duas personas aprovadoras, worker/outbox mínimos, aplicar/read-back/fechar; README/INSTRUCTIONS/CI | Mapa, descoberta de contato, multimodalidade, generalização | Aplicar conteúdo não aprovado ou não testado | Cenário G pela UI; testes de domínio, permissões, rejeição sem aprovação, T01–T06 pertinentes e reinício após aplicação; build e instruções de execução | Nenhuma |
+| 2 — Rodadas multicanal | Intake genérico, dossiê, lacunas, agrupamento/delta, dois simuladores de canal, correlação, persistência, prazos e UI de conversas | Novos contatos, OCR, mapa elaborado | Perder/duplicar evidência ou perguntar repetidamente | A e C; T02/T07/T08/T11/T13/T14; reinício durante espera, resposta parcial e simples “ok” | Fatia 1 |
+| 3 — Exceções e responsáveis | Descoberta/autorização, repasse restrito, anexos/derivados, conflitos, fila humana, retomada, reabertura, demais operações do catálogo | Integrações reais, publicação pública | Vazar escopo ou resolver conflito sem autoridade | B, D, E e H; T01–T16 completos; fluxo E2E da seção 15.3 | Fatia 2 |
+| 4 — Generalização medida | Adaptador ao vivo, contrato de saída, conjunto reservado, gold, comparador e relatório por modo | Trocar de desafio, RAG, fine-tuning, OCR genérico | Replay mascarar ausência de generalização ou modelo falhar | F conforme seção 16.3, com todas as execuções registradas; sem credenciais fica pendente | Intake da fatia 2; fazer prova técnica assim que disponível, antes do polimento |
+| 5 — Demo e empacotamento | Duas prefeituras/140 processos, seis processos interativos, mapa/lista, telas restantes, dois indicadores principais, instalação limpa, README/INSTRUCTIONS finais, roteiro e vídeo | Segurança produtiva e integração municipal real | Prazo/ambiente e estética consumirem validação | A–E/G/H, instalação limpa, CI/E2E, teclado, medição UI, roteiro cronometrado e relatório de F explícito | Fatias 1–3; fatia 4 também exigida para declarar entrega integral |
 
-- Modelos.
-- Estados.
-- Políticas.
-- Catálogo.
-- Eventos.
-- Schemas de agente.
-- Fixtures mínimas.
+Marco mínimo demonstrável: fatias 1–2, apresentado como **entrega parcial**. Demo operacional offline completa: 1–3 e 5. Entrega integral com alegação de configuração zero em casos reservados: todas, com F aprovado. Não retirar requisitos de segurança/versão/testes para compensar atraso.
 
-**Aceite:** testes de domínio passam.
-
-## Etapa 2 — Simuladores
-
-- Pylon.
-- Formulários.
-- WhatsApp.
-- Persistência e anexos.
-
-**Aceite:** abrir ticket, acessar formulário e responder por chat.
-
-## Etapa 3 — Intake e dossiê
-
-- Ler formulário.
-- Interpretar resposta inicial.
-- Criar ChangeRequests, evidências e lacunas.
-
-**Aceite:** resposta confusa vira dossiê rastreável.
-
-## Etapa 4 — Rodadas e orquestração
-
-- Planejador.
-- Worker.
-- Outbox.
-- Pylon+WhatsApp.
-- Espera e retomada.
-
-**Aceite:** processo sobrevive a reinício e mensagens duplicadas.
-
-## Etapa 5 — Consolidação e responsáveis
-
-- Evidências.
-- Delta.
-- Conflitos.
-- Repasses.
-- Canal principal.
-
-**Aceite:** cenários B, C e D passam.
-
-## Etapa 6 — Formulário e intervenção
-
-- ChangeSets.
-- Diff.
-- Validações.
-- Fila humana.
-- Retomada.
-
-**Aceite:** nenhuma alteração bypassa política.
-
-## Etapa 7 — Aprovação e encerramento
-
-- Dupla aprovação.
-- Aplicação.
-- Read-back.
-- Ticket.
-- Reabertura.
-
-**Aceite:** cenário G passa.
-
-## Etapa 8 — Interface completa
-
-- Mapa.
-- Fila.
-- Dossiê.
-- Rodadas.
-- Conversas.
-- Formulário.
-- Pessoas.
-- Aprovações.
-- Métricas.
-
-**Aceite:** fluxo E2E principal passa pela interface.
-
-## Etapa 9 — Hardening e apresentação
-
-- Testes adversariais.
-- Instalação limpa.
-- README.
-- INSTRUCTIONS.
-- Roteiro.
-- Contingência.
-- Polimento medieval.
-
-**Aceite:** checklist final completo.
+Antes de ampliar escopo, registrar o resultado do marco atual. Até a janela de encerramento das 16h indicada em `desafios.txt`, congelar funcionalidades e reservar o restante para verificar/empacotar; não iniciar uma nova fatia que inviabilize entrega às 17h. A disponibilidade de equipe/tempo não foi verificada nesta revisão, portanto não há estimativa de conclusão garantida.
 
 # 20. Definição de pronto
 
-O sistema somente está pronto quando:
+O gate de demo offline exige todos os itens aplicáveis abaixo; o gate integral exige também F ao vivo. Itens não executados continuam desmarcados, com motivo, e não podem ser contados como PASS:
 
 - [ ] Executa localmente sem credenciais.
 - [ ] Não exige Docker nem serviços externos.
 - [ ] Possui seed reproduzível e reset.
 - [ ] Possui duas prefeituras e escala visual de processos.
-- [ ] Possui pelo menos oito cenários obrigatórios.
-- [ ] Um formulário desconhecido funciona sem instruções específicas.
+- [ ] Possui A–H catalogados; A–E/G/H passam offline e F informa resultado ao vivo ou `not_run`.
+- [ ] Para declarar generalização/entrega integral: formulário desconhecido passa na inferência ao vivo sem instruções específicas (seção 16.3).
 - [ ] Resposta inicial é decomposta com evidências.
 - [ ] Clareza e viabilidade são independentes.
 - [ ] Rodadas são agrupadas por etapa e responsável.
 - [ ] Rodadas seguintes contêm apenas delta.
-- [ ] Primeira rodada usa Pylon e WhatsApp em paralelo.
+- [ ] Primeira rodada entrega o mesmo pacote nos dois canais quando ambos autorizados, com status individual e tratamento de falha parcial.
 - [ ] Respostas complementares são consolidadas.
 - [ ] Divergências são detectadas.
 - [ ] Descoberta de responsável retoma o processo original.
@@ -1510,7 +1631,8 @@ O sistema somente está pronto quando:
 - [ ] Humano intervém e retoma sem reiniciar.
 - [ ] ChangeSets possuem diff, validação e evidências.
 - [ ] Dupla aprovação referencia a mesma versão.
-- [ ] Alteração posterior invalida aprovações afetadas.
+- [ ] Alteração posterior de candidata/testes ou evidência contraditória invalida ambas as aprovações.
+- [ ] Candidata e versão lida passam nos testes funcionais vinculados ao hash aprovado.
 - [ ] Read-back é obrigatório antes do encerramento.
 - [ ] Ticket fecha somente após verificação.
 - [ ] Mapa mostra estados e bloqueios.
@@ -1522,6 +1644,20 @@ O sistema somente está pronto quando:
 - [ ] Não há segredos no repositório.
 - [ ] Não há alegação de impacto real com dados sintéticos.
 - [ ] O modo replay é identificado.
+- [ ] Instalação limpa, migração, build, seed/reset e reinício foram exercitados; evidências vinculadas ao commit.
+- [ ] Guardas de escopo/papel, concorrência e falhas T01–T16 foram exercitadas.
+- [ ] Logs/heartbeat e fila permitem distinguir espera, worker parado e falha sem expor segredos.
+- [ ] Lista/mapa, teclado, estados de erro e roteiro cronometrado foram verificados.
+
+## 20.1 Gate de implantação
+
+Para **disponibilizar a demo local**, registrar versão do commit, ambiente testado, comandos/exit codes e relatórios. Testes escritos sem execução e checklists preenchidos por inferência não servem como evidência. Uma demo parcial pode ser apresentada como tal, mas não recebe o gate de demo completa.
+
+Para **publicar em rede, usar dados reais ou integrar serviços reais**, abrir escopo posterior com ambiente/alvo, responsáveis de operação, identidade e autorização, isolamento municipal, gestão de segredos, política de dados, limites/custos, observabilidade, backup/restauração ensaiados, migrações e rollback de release. Não tratar `APP_ENV=demo` e troca de persona como segurança de publicação. Esses itens não foram implementados nem aprovados nesta revisão.
+
+## 20.2 Checklist externo do hackathon
+
+Separado do aceite técnico, conforme `desafios.txt`: repositório acessível aos jurados, README com problema e execução, pasta INSTRUCTIONS versionada e explicável, demo ou vídeo de backup, e link enviado pelo QR code até as 17h. Acessibilidade do repositório, vídeo e envio dependem de verificação real; não marcar concluído pela existência deste plano.
 
 # 21. Fora de escopo
 
@@ -1546,6 +1682,8 @@ Não implementar no hackathon:
 # 22. Roteiro da demonstração principal
 
 Duração sugerida: até cinco minutos, com versão curta de três minutos.
+
+Versão curta: ticket → dossiê e pacote de lacunas → resposta conhecida → candidata e teste positivo/negativo → duas aprovações → read-back/fechamento. Mostrar rótulo de replay e duas métricas locais. Descoberta de contato e conflito ficam na versão completa abaixo ou em cenários extras; ensaiar e registrar a duração, sem prometer que os quatorze passos cabem em três minutos.
 
 1. Mostrar mapa com prefeituras e soldados.
 2. Abrir ticket com resposta confusa e formulário vinculado.
