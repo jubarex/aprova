@@ -60,8 +60,8 @@ def _magic_ok(ext: str, data: bytes) -> bool:
 
 
 def validate(filename: str, data: bytes) -> str:
-    name = os.path.basename(filename or "")
-    if not name or name != filename.replace("\\", "/").split("/")[-1]:
+    name = filename or ""
+    if not name or "/" in name or "\\" in name or ".." in name or "\x00" in name:
         raise AppError("UPLOAD_REJECTED", "nome de arquivo inválido", 422)
     ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
     if ext not in EXT:

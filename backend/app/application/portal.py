@@ -130,6 +130,8 @@ def home(s: Session, actor: Actor) -> dict:
         item = {"case_id": c.id, "process": {"code": p.code, "name": p.name},
                 "deadline": deadline_dto(p.due_date, done=c.state == "COMPLETED"), "state": c.state,
                 "change_set_id": cs.id if cs else None}
+        if c.state in ("WAITING_ANY_CHANNEL", "WAITING_PRIMARY_CHANNEL"):
+            continue  # as perguntas abertas já aparecem em "Seu próximo passo" e "Para hoje"
         if c.state == "WAITING_MUNICIPAL_APPROVAL" and has_role(s, actor, "municipal_approver", p):
             item |= {"kind": "approval", "title": f"Aprovar a alteração de {p.code} · {p.name}",
                      "why": "Sem a sua aprovação a alteração não pode ser publicada."}
@@ -141,6 +143,12 @@ def home(s: Session, actor: Actor) -> dict:
             item |= {"kind": "waiting", "title": f"{p.code} · {p.name}",
                      "why": "A equipe da Aprova está cuidando desta etapa; você será avisado se precisarmos de algo."}
             waiting.append(item)
+    from .flow_views import portal_items
+    questions = portal_items(s, actor)
+    q_items = [{"case_id": q["case_id"], "process": q["process"], "deadline": q["deadline"], "state": "QUESTION",
+                "change_set_id": None, "kind": "question", "item_id": q["id"],
+                "title": q["question"], "why": q["why"]} for q in questions]
+    todo = q_items + todo
     next_step = todo[0] if todo else None
     return {"municipality": municipality_dto(m), "person": {"id": actor.id, "name": actor.name},
             "secretariat": sec.name if sec else None, "next_step": next_step, "today": todo,

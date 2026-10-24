@@ -22,6 +22,10 @@ from sqlalchemy import select, text
 
 from .. import clock
 from ..agent import fixtures
+from ..scenarios import SCENARIOS
+from ..application import analysis
+from .flow_routes import register as register_flow
+from types import SimpleNamespace
 from ..application import cases, changes, portal, views
 from ..application.common import (
     AppError, audit, get_actor, has_role, open_interventions, pause_case, require_role, resume_case,
@@ -98,6 +102,7 @@ def create_app(settings: Settings | None = None, start_worker: bool = True) -> F
     stop = threading.Event()
     paused = threading.Event()  # worker suspenso durante reset
     fixtures.register_all()
+    analysis.STATE["adapter"] = settings.ai_adapter
     with tx(factory) as s:
         seed(s)
 
@@ -271,27 +276,21 @@ def create_app(settings: Settings | None = None, start_worker: bool = True) -> F
             need_implanter(s, whoami(s, token))
         return {"business_now": clock.advance(body.hours).isoformat()}
 
-    @app.get("/api/demo/scenarios")
-    def scenarios():
-        return [{"id": "G", "title": "Cenário G — ciclo completo",
-                 "description": "Ticket com dois pedidos claros → candidata e testes → duas aprovações → aplicação, "
-                                "verificação e fechamento.", "mode": "offline"}]
-
     @app.post("/api/demo/scenarios/{scenario_id}/start")
     def start_scenario(scenario_id: str, token: str | None = TOKEN):
         demo_only()
-        if scenario_id != "G":
+        sc = SCENARIOS.get(scenario_id)
+        if sc is None:
             raise AppError("NOT_FOUND", "cenário inexistente", 404)
         with db() as s:
             actor = need_implanter(s, whoami(s, token))
-            p = s.get(ProcessDefinition, "proc_vr_iss012")
+            p = s.get(ProcessDefinition, sc["process_id"])
             active = s.scalar(select(ValidationCase).where(ValidationCase.process_id == p.id,
                                                            ValidationCase.active == True))  # noqa: E712
             if active:
                 return {"case_id": active.id, "reused": True}
-            t = cases.create_ticket(s, process_id=p.id, title="Ajustes no formulário de alvará",
-                                    description="Pedido do secretário de Fazenda",
-                                    initial_reply=fixtures.SCENARIO_G_REPLY, actor=actor.id)
+            t = cases.create_ticket(s, process_id=p.id, title=sc["ticket_title"],
+                                    description="Cenário de demonstração", initial_reply=sc["reply"], actor=actor.id)
             c = cases.start_case(s, t.id, actor.id)
             return {"case_id": c.id, "reused": False}
 
@@ -606,6 +605,9 @@ def create_app(settings: Settings | None = None, start_worker: bool = True) -> F
                 return {"state": s.get(ValidationCase, cs.case_id).state}
             return idem(s, actor, "portal.approval", cs_id, key, body.model_dump(), run)
 
+    register_flow(app, SimpleNamespace(
+        TOKEN=TOKEN, IDEM=IDEM, db=db, whoami=whoami, need_implanter=need_implanter, idem=idem,
+        case_or_404=case_or_404, settings=settings, demo_only=demo_only, need_contact=need_contact))
     return app
 
 

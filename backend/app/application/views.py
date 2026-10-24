@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from ..clock import business_now
 from ..domain.states import CaseState, ball_owner
+from . import rounds as rounds_mod
 from ..persistence.models import (
     Actor, Approval, AuditEvent, ChangeRequest, ChangeSet, Intervention, Municipality, ProcessDefinition,
     Secretariat, Ticket, ValidationCase,
@@ -150,6 +151,26 @@ def today(s: Session, client_id: str | None = None) -> dict:
             tasks.append(_task("intervention", card, f"Resolver: {iv.reason}", iv.reason_code,
                                iv.needed_decision or iv.reason, iv.created_at,
                                {"label": "Abrir decisão", "route": route}, iv.urgency))
+        elif c.state == "ROUND_READY":
+            rnd = rounds_mod.active_round(s, c.id)
+            who = s.get(Actor, rnd.recipient_id).name if rnd else "o destinatário"
+            tasks.append(_task("review_first_message", card, f"Revisar a primeira mensagem para {who}",
+                               "ROUND_READY", "É o primeiro contato com esta pessoa: uma revisão humana antes do envio.",
+                               c.state_since, {"label": "Revisar e enviar", "route": route}, 2))
+        elif c.state == "WAITING_OWNER":
+            from ..persistence.flow_models import Gap as GapM
+            g = s.scalar(select(GapM).where(GapM.case_id == c.id, GapM.status == "open").order_by(GapM.created_at))
+            tasks.append(_task("define_owner", card, f"Definir quem responde sobre {g.topic if g else 'o assunto'} em {code}",
+                               "WAITING_OWNER", "Nenhum contato autorizado cobre este assunto; a pergunta não pode sair.",
+                               c.state_since, {"label": "Definir responsável", "route": route}, 2))
+        elif c.state == "WAITING_REFERRAL":
+            from ..persistence.flow_models import ContactReferral as RF
+            for rf in s.scalars(select(RF).where(RF.case_id == c.id, RF.status == "pending")):
+                frm = s.get(Actor, rf.from_actor_id)
+                tasks.append(_task("authorize_referral", card,
+                                   f"Autorizar {rf.name} a responder sobre {rf.topic} em {code}. Indicada por {frm.name if frm else '—'}",
+                                   "WAITING_REFERRAL", "Receber um nome não concede autorização: só o assunto indicado será repassado.",
+                                   rf.created_at, {"label": "Autorizar escopo", "route": route}, 2))
         elif c.state == "WAITING_IMPLANTER_APPROVAL":
             cs = s.scalar(select(ChangeSet).where(ChangeSet.case_id == c.id).order_by(ChangeSet.created_at.desc()))
             tasks.append(_task("approve_implanter", card, f"Aprovar pela Aprova a versão {cs.candidate_hash[:8]} de {code}",
@@ -169,6 +190,21 @@ def today(s: Session, client_id: str | None = None) -> dict:
             waiting.append(card)
         elif card["ball_owner"] in ("agente", "sistema"):
             agent.append(card)
+    # mensagens sem rodada inequívoca (triagem) e possíveis novas solicitações
+    from ..persistence.flow_models import Message as Msg
+    tq = select(Msg).where(Msg.triage_status == "pending", Msg.direction == "in")
+    if client_id:
+        tq = tq.where(Msg.municipality_id == client_id)
+    for m in s.scalars(tq):
+        c = s.get(ValidationCase, m.case_id)
+        card = case_card(s, c)
+        who = s.get(Actor, m.actor_id).name if m.actor_id else "contato"
+        done = c.state == "COMPLETED"
+        title = (f"Avaliar possível nova solicitação de {who} em {card['process']['code']}" if done
+                 else f"Classificar mensagem de {who} ({m.channel})")
+        tasks.append(_task("triage", card, title, "TRIAGEM",
+                           "A mensagem não tem rodada inequívoca; o sistema não a atribui por conveniência.",
+                           m.received_at, {"label": "Abrir", "route": f"/inbox?triage=1"}, 2))
     # processos do cronograma em risco/atrasados sem caso iniciado
     pq = select(ProcessDefinition).where(ProcessDefinition.started == False)  # noqa: E712
     if client_id:

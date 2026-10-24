@@ -15,12 +15,12 @@ SCENARIOS: dict[str, dict] = {
         "description": "Cinco pedidos misturados (rótulo, anexo condicional incompleto, campo ambíguo, formulário antigo e "
                        "outro setor). Intenções separadas com citação, um pacote de lacunas e a próxima rodada só com o que falta.",
         "steps": [
-            {"id": "a1", "label": "Ana responde parte das perguntas (WhatsApp)", "type": "message", "actor": "act_ana",
-             "channel": "whatsapp", "text": fx.A_S1},
+            {"id": "a1", "label": "Ana responde parte das perguntas (Portal)", "type": "message", "actor": "act_ana",
+             "channel": "portal", "text": fx.A_S1},
             {"id": "a2", "label": "Ana responde só “ok” (não encerra nada)", "type": "message", "actor": "act_ana",
              "channel": "whatsapp", "text": "ok, obrigada", "expect": "ignored"},
-            {"id": "a3", "label": "Ana responde o restante (Portal)", "type": "message", "actor": "act_ana",
-             "channel": "portal", "text": fx.A_S2},
+            {"id": "a3", "label": "Ana responde o restante (WhatsApp, mesmo caso)", "type": "message", "actor": "act_ana",
+             "channel": "whatsapp", "text": fx.A_S2},
             {"id": "a4", "label": "João (Obras) responde a rodada seguinte (Portal)", "type": "message",
              "actor": "act_joao", "channel": "portal", "text": fx.A_S3},
         ],
