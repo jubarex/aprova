@@ -12,6 +12,11 @@ import { ChannelBadge, DeadlineBadge, StateBadge } from '@/components/domain/bad
 import { ConfirmEffectDialog, WhyPanel } from '@/components/domain/panels'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { RoundsTab } from './case/RoundsTab'
+import { ConversationTab } from './case/ConversationTab'
+import { PeopleTab } from './case/PeopleTab'
+import { SimulatorTab } from './case/SimulatorTab'
+import { DecisionPanel } from './case/DecisionPanel'
 import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -104,6 +109,8 @@ export default function CaseDetailPage() {
 
       <WhyPanel e={k.explanation} />
 
+      <DecisionPanel c={k} />
+
       <div className="flex flex-wrap gap-2" role="group" aria-label="Ações do caso">
         {k.state === 'CHANGES_READY' && set ? (<>
           <Button variant="outline" onClick={() => run.mutate()} disabled={run.isPending}>Rodar testes</Button>
@@ -129,9 +136,13 @@ export default function CaseDetailPage() {
       <Tabs defaultValue="dossier">
         <TabsList>
           <TabsTrigger value="dossier">Dossiê</TabsTrigger>
+          <TabsTrigger value="rounds">Rodadas e lacunas</TabsTrigger>
+          <TabsTrigger value="messages">Conversas</TabsTrigger>
+          <TabsTrigger value="people">Pessoas</TabsTrigger>
           <TabsTrigger value="form">Formulário e testes</TabsTrigger>
           <TabsTrigger value="approvals">Aprovações</TabsTrigger>
           <TabsTrigger value="timeline">Linha do tempo</TabsTrigger>
+          <TabsTrigger value="sim">Simulador</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dossier" className="mt-4 grid gap-4 lg:grid-cols-2">
@@ -155,6 +166,11 @@ export default function CaseDetailPage() {
             <p className="text-xs text-muted-foreground">Interpretação feita pelo agente em modo replay (simulado); a citação é conferida pelo servidor.</p>
           </section>
         </TabsContent>
+
+        <TabsContent value="rounds" className="mt-4"><RoundsTab caseId={k.id} /></TabsContent>
+        <TabsContent value="messages" className="mt-4"><ConversationTab caseId={k.id} /></TabsContent>
+        <TabsContent value="people" className="mt-4"><PeopleTab c={k} /></TabsContent>
+        <TabsContent value="sim" className="mt-4"><SimulatorTab c={k} /></TabsContent>
 
         <TabsContent value="form" className="mt-4 space-y-4">
           {!set ? <p className="text-sm text-muted-foreground">Ainda não há candidata para este caso.</p> : (<>

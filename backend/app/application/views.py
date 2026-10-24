@@ -205,6 +205,24 @@ def today(s: Session, client_id: str | None = None) -> dict:
         tasks.append(_task("triage", card, title, "TRIAGEM",
                            "A mensagem não tem rodada inequívoca; o sistema não a atribui por conveniência.",
                            m.received_at, {"label": "Abrir", "route": f"/inbox?triage=1"}, 2))
+    # declarações do primeiro acesso: "indicar outra pessoa" ou "não sei" viram tarefa para o implantador
+    from ..persistence.flow_models import ResponsibilityClaim as RCl
+    cq = select(RCl).where(RCl.handled == False, RCl.answer.in_(["refer", "unknown"]))  # noqa: E712
+    if client_id:
+        cq = cq.where(RCl.municipality_id == client_id)
+    for cl in s.scalars(cq):
+        p = s.get(ProcessDefinition, cl.process_id)
+        who = s.get(Actor, cl.actor_id)
+        m = s.get(Municipality, cl.municipality_id)
+        txt = (f"{who.name} indicou {cl.refer_name}" if cl.answer == "refer" else f"{who.name} disse não saber")
+        tasks.append({
+            "task_id": f"claim:{cl.id}", "kind": "claim", "client": municipality_dto(m),
+            "process": {"id": p.id, "code": p.code, "name": p.name}, "case_id": None,
+            "title": f"Definir o responsável por {p.code}: {txt}", "why": {"code": "PRIMEIRO_ACESSO",
+            "text": "Declarar não é autorizar: um responsável da Aprova precisa definir quem responde por este processo."},
+            "since": _utc(cl.created_at).isoformat(), "deadline": deadline_dto(p.due_date),
+            "primary_action": {"label": "Definir responsável", "route": f"/clients?claim={cl.id}&process={p.id}"},
+            "urgency": 3, "secretariat": None})
     # processos do cronograma em risco/atrasados sem caso iniciado
     pq = select(ProcessDefinition).where(ProcessDefinition.started == False)  # noqa: E712
     if client_id:

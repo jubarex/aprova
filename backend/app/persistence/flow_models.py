@@ -181,3 +181,27 @@ class PortalAccess(Base):
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class ResponsibilityClaim(Base):
+    """Declaração do contato no primeiro acesso. É só uma declaração: não concede papel (I18)."""
+
+    __tablename__ = "responsibility_claim"
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: new_id("rc_"))
+    actor_id: Mapped[str] = mapped_column(String, index=True)
+    municipality_id: Mapped[str] = mapped_column(String, index=True)
+    process_id: Mapped[str] = mapped_column(String)
+    answer: Mapped[str] = mapped_column(String)  # mine | refer | unknown
+    refer_name: Mapped[str] = mapped_column(String, default="")
+    handled: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    __table_args__ = (UniqueConstraint("actor_id", "process_id"),)
+
+
+class ContactOnboarding(Base):
+    __tablename__ = "contact_onboarding"
+    actor_id: Mapped[str] = mapped_column(String, primary_key=True)
+    invited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    first_access_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    identity_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    preferred_channel_set_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

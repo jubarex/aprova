@@ -161,3 +161,33 @@ def test_upload_recusado_pela_api(api):
                  data={"actor_id": "act_ana", "channel": "whatsapp", "text": "segue", "external_key": "z1"})
     assert r.status_code == 422 and r.json()["code"] == "UPLOAD_REJECTED"
     assert api.get(f"/api/cases/{cid}/conversations", headers=rui).json()["messages"][-1]["direction"] == "out"
+
+
+def test_cenario_j_primeiro_acesso_e_orcamento_de_atencao(api):
+    from app.persistence.db import tx
+    from app.persistence.models import Municipality
+    rui, ana = login(api, "act_rui"), login(api, "act_ana")
+    ob = api.get("/api/portal/onboarding", headers=ana).json()
+    assert ob["done"] is False and ob["processes"]
+    pid = next(p["id"] for p in ob["processes"] if p["id"] == "proc_vr_iss030")
+    bad = api.post("/api/portal/onboarding", headers=idem(ana, "ob0"), json={"preferred_channel": "portal",
+                   "claims": [{"process_id": "proc_sa_iss012", "answer": "mine"}]})
+    assert bad.status_code == 422  # processo de outro município
+    ok = api.post("/api/portal/onboarding", headers=idem(ana, "ob1"), json={"preferred_channel": "whatsapp",
+                  "claims": [{"process_id": pid, "answer": "refer", "refer_name": "Pedro Alves"}]})
+    assert ok.status_code == 200
+    assert api.get("/api/portal/onboarding", headers=ana).json()["done"] is True
+    # a declaração NÃO concede papel: aparece como tarefa para o implantador
+    t = [x for x in api.get("/api/today", headers=rui).json()["tasks"] if x["kind"] == "claim"]
+    assert len(t) == 1 and "Pedro Alves" in t[0]["title"]
+    # orçamento de atenção: o excedente é adiado, nunca descartado
+    with tx(api.factory) as s:
+        s.get(Municipality, "mun_vr").daily_item_budget = 1
+    cid = start(api, rui, "A")
+    runner.drain(api.factory)
+    rnd = api.get(f"/api/cases/{cid}/rounds", headers=rui).json()[0]
+    api.post(f"/api/rounds/{rnd['id']}/release", json={}, headers=idem(rui, "rel2"))
+    settle(api.factory)
+    home = api.get("/api/portal/me", headers=ana).json()
+    assert len(home["today"]) == 1 and len(home["upcoming"]) == 2 and home["daily_budget"] == 1
+    assert len(api.get("/api/portal/pending", headers=ana).json()) == 3  # nenhum item se perdeu

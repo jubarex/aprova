@@ -1,6 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Building2, CalendarCheck, Inbox, LogOut, TriangleAlert, FlaskConical } from 'lucide-react'
+import { BarChart3, Building2, CalendarCheck, ChartGantt, Inbox, LayoutList, LogOut, TriangleAlert, FlaskConical } from 'lucide-react'
 import { api } from '@/lib/api'
 import { poll, useSession } from '@/lib/session'
 import type { ClientRow, Today } from '@/lib/types'
@@ -11,8 +11,12 @@ import { Button } from '@/components/ui/button'
 
 const nav = [
   { to: '/', label: 'Hoje', Icon: CalendarCheck, end: true },
+  { to: '/inbox', label: 'Caixa de entrada', Icon: Inbox, end: false },
   { to: '/interventions', label: 'Intervenções', Icon: TriangleAlert, end: false },
   { to: '/clients', label: 'Clientes', Icon: Building2, end: false },
+  { to: '/schedule', label: 'Cronograma', Icon: ChartGantt, end: false },
+  { to: '/metrics', label: 'Métricas', Icon: BarChart3, end: false },
+  { to: '/templates', label: 'Capacidades', Icon: LayoutList, end: false },
   { to: '/settings/demo', label: 'Demonstração', Icon: FlaskConical, end: false },
 ]
 
@@ -59,7 +63,6 @@ export function AppShell() {
                 {to === '/' && total > 0 ? <span className="ml-auto rounded-full bg-primary px-1.5 text-[11px] text-primary-foreground">{total}</span> : null}
               </NavLink>
             ))}
-            <span className="hidden items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground md:flex" title="Disponível em uma fatia futura"><Inbox className="size-4" aria-hidden />Caixa de entrada <em className="ml-auto text-[11px] not-italic">em breve</em></span>
           </nav>
 
           <div className="mt-auto flex items-center justify-between gap-2 border-t pt-3 text-xs">

@@ -54,3 +54,21 @@ export async function api<T>(path: string, opts: Opts = {}): Promise<T> {
 
 export const post = <T,>(path: string, body: unknown = {}) =>
   api<T>(path, { method: 'POST', body, idempotencyKey: true })
+
+/** Envio multipart (simuladores e Portal). Não define Content-Type: o navegador inclui o boundary. */
+export async function postForm<T>(path: string, form: FormData, idempotencyKey: string | true = true): Promise<T> {
+  const headers: Record<string, string> = {}
+  const token = getToken()
+  if (token) headers['X-Demo-Token'] = token
+  headers['Idempotency-Key'] = idempotencyKey === true ? newKey() : idempotencyKey
+  let res: Response
+  try { res = await fetch(path, { method: 'POST', headers, body: form }) } catch {
+    throw new ApiError(0, 'NETWORK', 'Não foi possível falar com o servidor. Verifique se a API está em execução.', undefined, true)
+  }
+  if (!res.ok) {
+    let j: { code?: string; message?: string; request_id?: string; retryable?: boolean } = {}
+    try { j = await res.json() } catch { /* corpo vazio */ }
+    throw new ApiError(res.status, j.code ?? 'ERROR', j.message ?? `Erro ${res.status}`, j.request_id, j.retryable)
+  }
+  return res.json() as Promise<T>
+}

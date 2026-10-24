@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { CircleCheck, Hourglass } from 'lucide-react'
 import { api } from '@/lib/api'
 import { poll } from '@/lib/session'
-import type { PortalHome, PortalItem } from '@/lib/types'
+import type { PortalHomeX as PortalHome, PortalItem } from '@/lib/types'
 import { DeadlineBadge } from '@/components/domain/badges'
 import { NextStepCard } from '@/components/domain/panels'
 import { Button } from '@/components/ui/button'
@@ -20,8 +20,10 @@ function Row({ i }: { i: PortalItem }) {
     </>
   )
   const cls = 'flex items-start gap-3 rounded-xl border bg-card p-3'
-  return i.kind === 'approval' && i.change_set_id
-    ? <li><Link to={`/portal/aprovacoes/${i.change_set_id}`} className={`${cls} hover:bg-muted/50`}>{inner}</Link></li>
+  const href = i.kind === 'approval' && i.change_set_id ? `/portal/aprovacoes/${i.change_set_id}`
+    : i.kind === 'question' && i.item_id ? `/portal/pendencias/${i.item_id}` : null
+  return href
+    ? <li><Link to={href} className={`${cls} hover:bg-muted/50`}>{inner}</Link></li>
     : <li className={cls}>{inner}</li>
 }
 
@@ -40,7 +42,7 @@ export default function PortalHomePage() {
       {h.next_step ? (
         <NextStepCard
           title={h.next_step.title} why={h.next_step.why} deadline={<DeadlineBadge deadline={h.next_step.deadline} />}
-          action={<Button size="lg" className="h-11 w-full text-base" render={<Link to={`/portal/aprovacoes/${h.next_step.change_set_id}`} />}>Revisar e aprovar</Button>}
+          action={<Button size="lg" className="h-11 w-full text-base" render={<Link to={h.next_step.kind === 'question' ? `/portal/pendencias/${h.next_step.item_id}` : `/portal/aprovacoes/${h.next_step.change_set_id}`} />}>{h.next_step.kind === 'question' ? 'Responder agora' : 'Revisar e aprovar'}</Button>}
         />
       ) : (
         <section className="rounded-xl border bg-card p-4">
@@ -49,14 +51,26 @@ export default function PortalHomePage() {
         </section>
       )}
 
+      {h.needs_onboarding ? (
+        <Link to="/portal/primeiro-acesso" className="block rounded-xl border border-brand-100 bg-brand-50 p-3 text-sm font-medium">Primeiro acesso: confirme seus dados e diga o que é com você →</Link>
+      ) : null}
+
       {h.today.length > 1 ? (
-        <section aria-label="Para hoje"><h2 className="mb-2 text-base font-semibold">Para hoje ({h.today.length})</h2><ul className="space-y-2">{h.today.map((i) => <Row key={i.case_id} i={i} />)}</ul></section>
+        <section aria-label="Para hoje"><h2 className="mb-2 text-base font-semibold">Para hoje ({h.today.length})</h2><ul className="space-y-2">{h.today.map((i) => <Row key={`${i.case_id}-${i.item_id ?? i.kind}`} i={i} />)}</ul></section>
+      ) : null}
+
+      {h.upcoming.length ? (
+        <section aria-label="Próximos"><h2 className="mb-1 text-base font-semibold">Próximos ({h.upcoming.length})</h2>
+          <p className="mb-2 text-xs text-muted-foreground">Para não sobrecarregar o seu dia, mostramos até {h.daily_budget} por vez. Nada se perde: estes entram em seguida.</p>
+          <ul className="space-y-2">{h.upcoming.map((i) => <Row key={`${i.case_id}-${i.item_id ?? i.kind}`} i={i} />)}</ul></section>
       ) : null}
 
       <section aria-label="Aguardando a Aprova">
         <h2 className="mb-2 flex items-center gap-1.5 text-base font-semibold"><Hourglass className="size-4" aria-hidden />Aguardando a Aprova ({h.waiting.length})</h2>
         {h.waiting.length === 0 ? <p className="text-sm text-muted-foreground">Nada em andamento por nossa parte.</p> : <ul className="space-y-2">{h.waiting.map((i) => <Row key={i.case_id} i={i} />)}</ul>}
       </section>
+
+      <p className="text-sm"><Link className="underline underline-offset-4" to="/portal/historico">Ver o que você já respondeu</Link></p>
 
       <section aria-label="Concluídos">
         <h2 className="mb-2 text-base font-semibold">Concluídos ({h.done.length})</h2>

@@ -1,6 +1,9 @@
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
 import { useQuery } from '@tanstack/react-query'
-import { api } from '@/lib/api'
+import { api, post } from '@/lib/api'
 import { poll } from '@/lib/session'
 import { fmtDate } from '@/lib/format'
 import type { CaseCard, ClientRow } from '@/lib/types'
@@ -11,12 +14,25 @@ import { Skeleton } from '@/components/ui/skeleton'
 type Proc = { id: string; code: string; name: string; municipality: ClientRow; started: boolean; wave: number; deadline: CaseCard['deadline'] }
 
 export default function ClientsPage() {
+  const [sp, setSp] = useSearchParams()
+  const qc = useQueryClient()
+  const claim = sp.get('claim')
+  const handled = useMutation({
+    mutationFn: () => post(`/api/claims/${claim}/handle`, {}),
+    onSuccess: () => { toast.success('Tratado.'); setSp({}); qc.invalidateQueries() },
+  })
   const clients = useQuery({ queryKey: ['clients'], queryFn: () => api<ClientRow[]>('/api/clients'), refetchInterval: poll })
   const procs = useQuery({ queryKey: ['processes'], queryFn: () => api<Proc[]>('/api/processes'), refetchInterval: poll })
   const cases = useQuery({ queryKey: ['cases'], queryFn: () => api<CaseCard[]>('/api/cases'), refetchInterval: poll })
 
   return (
     <div className="space-y-6">
+      {claim ? (
+        <div role="note" className="flex flex-wrap items-center gap-3 rounded-xl border border-st-blocked-border bg-st-blocked-bg p-3 text-sm">
+          <span className="flex-1">Uma declaração do primeiro acesso aguarda você: inicie a validação do processo (ou autorize o responsável no caso) e depois marque como tratada. Declarar não é autorizar.</span>
+          <Button size="sm" onClick={() => handled.mutate()}>Marcar como tratada</Button>
+        </div>
+      ) : null}
       <div><h1>Clientes</h1><p className="mt-1 text-muted-foreground">Uma implantação por prefeitura. Processos não iniciados ficam fora das contagens de sucesso.</p></div>
       {clients.isLoading ? <Skeleton className="h-40" /> : null}
       {clients.data?.map((c) => {

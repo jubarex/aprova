@@ -533,9 +533,25 @@ def register(app: FastAPI, c: SimpleNamespace) -> None:
             return [{"id": m.id, "channel": m.channel, "body": m.body, "at": views._utc(m.received_at).isoformat()}
                     for m in rows]
 
+    @app.get("/api/portal/onboarding")
+    def onboarding_get(token: str | None = TOKEN):
+        with db() as s:
+            return portal.onboarding_view(s, c.need_contact(s, token))
+
     @app.post("/api/portal/onboarding")
-    def onboarding(body: OnboardingIn, token: str | None = TOKEN):
+    def onboarding(body: OnboardingIn, token: str | None = TOKEN, key: str | None = IDEM):
         with db() as s:
             a = c.need_contact(s, token)
-            people.set_preferred_channel(s, None, a, body.preferred_channel)
-            return {"ok": True}
+            return idem(s, a, "portal.onboarding", a.id, key, body.model_dump(),
+                        lambda: portal.save_onboarding(s, a, body.preferred_channel, body.claims))
+
+    @app.post("/api/claims/{claim_id}/handle")
+    def handle_claim(claim_id: str, token: str | None = TOKEN):
+        from ..persistence.flow_models import ResponsibilityClaim
+        with db() as s:
+            imp = need_implanter(s, whoami(s, token))
+            cl = s.get(ResponsibilityClaim, claim_id)
+            if cl is None:
+                raise AppError("NOT_FOUND", "declaração inexistente", 404)
+            cl.handled = True
+            return {"handled": True}

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from ..domain.forms import (
     And, Compare, Exists, FormSchema, In, Not, Or, Require, validate_input,
 )
+from ..persistence.flow_models import ContactOnboarding, ResponsibilityClaim
 from ..persistence.models import (
     Actor, Approval, ChangeSet, FormVersion, Municipality, ProcessDefinition, Secretariat, ValidationCase,
 )
@@ -149,7 +150,68 @@ def home(s: Session, actor: Actor) -> dict:
                 "change_set_id": None, "kind": "question", "item_id": q["id"],
                 "title": q["question"], "why": q["why"]} for q in questions]
     todo = q_items + todo
+    # orçamento de atenção: adia, nunca descarta nem oculta (I19)
+    budget = s.get(Municipality, actor.municipality_id).daily_item_budget or 5
+    upcoming = todo[budget:]
+    todo = todo[:budget]
     next_step = todo[0] if todo else None
+    ob = s.get(ContactOnboarding, actor.id)
     return {"municipality": municipality_dto(m), "person": {"id": actor.id, "name": actor.name},
             "secretariat": sec.name if sec else None, "next_step": next_step, "today": todo,
-            "waiting": waiting, "done": done}
+            "waiting": waiting, "done": done, "upcoming": upcoming, "daily_budget": budget,
+            "needs_onboarding": ob is None or ob.first_access_at is None}
+
+
+def assigned_processes(s: Session, actor: Actor) -> list[ProcessDefinition]:
+    """Processos que, a princípio, são desta pessoa: papel no processo ou mesma secretaria (primeira onda primeiro)."""
+    from ..persistence.models import RoleAssignment
+    ids = {ra.process_id for ra in s.scalars(select(RoleAssignment).where(
+        RoleAssignment.actor_id == actor.id, RoleAssignment.revoked_at.is_(None), RoleAssignment.process_id.is_not(None)))}
+    q = select(ProcessDefinition).where(ProcessDefinition.municipality_id == actor.municipality_id)
+    rows = [p for p in s.scalars(q.order_by(ProcessDefinition.wave, ProcessDefinition.due_date))
+            if p.id in ids or (actor.secretariat_id and p.secretariat_id == actor.secretariat_id)]
+    return rows[:6]
+
+
+def onboarding_view(s: Session, actor: Actor) -> dict:
+    ob = s.get(ContactOnboarding, actor.id)
+    sec = s.get(Secretariat, actor.secretariat_id) if actor.secretariat_id else None
+    claims = {c.process_id: c for c in s.scalars(select(ResponsibilityClaim).where(ResponsibilityClaim.actor_id == actor.id))}
+    return {"name": actor.name, "secretariat": sec.name if sec else None,
+            "municipality": municipality_dto(s.get(Municipality, actor.municipality_id)),
+            "preferred_channel": actor.preferred_channel, "done": bool(ob and ob.first_access_at),
+            "processes": [{"id": p.id, "code": p.code, "name": p.name,
+                           "claim": claims[p.id].answer if p.id in claims else None,
+                           "refer_name": claims[p.id].refer_name if p.id in claims else ""}
+                          for p in assigned_processes(s, actor)]}
+
+
+def save_onboarding(s: Session, actor: Actor, preferred_channel: str, claims: list[dict]) -> dict:
+    """Confirma identidade, registra declarações e o canal. Nada disso concede autoridade de aprovação."""
+    from datetime import timezone
+    from ..clock import business_now
+    from .common import audit
+    from .people import set_preferred_channel
+    now = business_now()
+    valid = {p.id for p in assigned_processes(s, actor)}
+    for c in claims:
+        if c.get("process_id") not in valid or c.get("answer") not in ("mine", "refer", "unknown"):
+            raise AppError("VALIDATION_ERROR", "declaração inválida", 422)
+        if c["answer"] == "refer" and not str(c.get("refer_name", "")).strip():
+            raise AppError("VALIDATION_ERROR", "informe o nome de quem sabe", 422)
+        row = s.scalar(select(ResponsibilityClaim).where(ResponsibilityClaim.actor_id == actor.id,
+                                                         ResponsibilityClaim.process_id == c["process_id"]))
+        if row is None:
+            row = ResponsibilityClaim(actor_id=actor.id, municipality_id=actor.municipality_id, process_id=c["process_id"],
+                                      answer=c["answer"])
+            s.add(row)
+        row.answer, row.refer_name, row.handled = c["answer"], str(c.get("refer_name", "")).strip(), c["answer"] == "mine"
+    ob = s.get(ContactOnboarding, actor.id) or ContactOnboarding(actor_id=actor.id)
+    s.add(ob)
+    ob.first_access_at = ob.first_access_at or now
+    ob.identity_confirmed_at = now
+    ob.preferred_channel_set_at = now
+    set_preferred_channel(s, None, actor, preferred_channel)
+    audit(s, actor=actor.id, action="onboarding_done", municipality_id=actor.municipality_id,
+          detail={"claims": len(claims)}, why="Primeiro acesso concluído; declarações não concedem papel")
+    return {"ok": True}
