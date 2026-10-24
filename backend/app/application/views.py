@@ -168,7 +168,7 @@ def today(s: Session, client_id: str | None = None) -> dict:
             for rf in s.scalars(select(RF).where(RF.case_id == c.id, RF.status == "pending")):
                 frm = s.get(Actor, rf.from_actor_id)
                 tasks.append(_task("authorize_referral", card,
-                                   f"Autorizar {rf.name} a responder sobre {rf.topic} em {code}. Indicada por {frm.name if frm else '—'}",
+                                   f"Autorizar {rf.name} a responder sobre {rf.topic} em {code} (indicação de {frm.name if frm else '—'})",
                                    "WAITING_REFERRAL", "Receber um nome não concede autorização: só o assunto indicado será repassado.",
                                    rf.created_at, {"label": "Autorizar escopo", "route": route}, 2))
         elif c.state == "WAITING_IMPLANTER_APPROVAL":

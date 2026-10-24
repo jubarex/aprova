@@ -208,6 +208,15 @@ def register(app: FastAPI, c: SimpleNamespace) -> None:
             rounds.set_fault(s, body.channel, body.mode)
             return rounds.faults(s)
 
+    @app.post("/api/demo/populate")
+    def populate_demo(token: str | None = TOKEN):
+        """Dados de exemplo: leva cada cenário a um estado diferente (idempotente)."""
+        c.demo_only()
+        from ..application import demo_state
+        with db() as s:
+            need_implanter(s, whoami(s, token))
+        return demo_state.populate(app.state.factory, c.settings.attachment_dir)
+
     @app.get("/api/demo/faults")
     def get_faults(token: str | None = TOKEN):
         with db() as s:

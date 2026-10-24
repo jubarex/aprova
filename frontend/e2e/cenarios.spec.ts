@@ -104,7 +104,7 @@ test('D — fontes contraditórias: sem escolha arbitrária; decisão humana ret
 test('Hoje mostra o cliente e o motivo em cada tarefa; teclado com foco visível', async ({ page }) => {
   await loginAs(page, /Rui Prado/)
   await expect(page.getByRole('heading', { name: 'O que fazer hoje' })).toBeVisible()
-  await expect(page.getByText('Prefeitura de Vale do Ribeiro').first()).toBeVisible()
+  await expect(page.locator('main').getByText('Prefeitura de Vale do Ribeiro').first()).toBeVisible()
   await expect(page.getByText('Por quê:').first()).toBeVisible()
   await expect(page.getByText('Ambiente de demonstração — dados sintéticos')).toBeVisible()
   await page.keyboard.press('Tab')

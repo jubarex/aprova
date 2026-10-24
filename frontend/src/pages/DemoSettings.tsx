@@ -24,6 +24,11 @@ export default function DemoSettingsPage() {
     onSuccess: (r) => { qc.invalidateQueries(); nav(`/processes/${r.case_id}`) },
     onError: (e: Error) => toast.error(e.message),
   })
+  const populate = useMutation({
+    mutationFn: () => post<{ skipped: boolean; reason?: string }>('/api/demo/populate'),
+    onSuccess: (r) => { r.skipped ? toast.info(r.reason) : toast.success('Dados de exemplo criados: veja o Hoje.'); qc.invalidateQueries(); if (!r.skipped) nav('/') },
+    onError: (e: Error) => toast.error(e.message),
+  })
   const clock = useMutation({
     mutationFn: (hours: number) => post('/api/demo/clock/advance', { hours }),
     onSuccess: () => { toast.success('Relógio de negócio avançado.'); qc.invalidateQueries() },
@@ -44,6 +49,12 @@ export default function DemoSettingsPage() {
   return (
     <div className="max-w-3xl space-y-6">
       <div><h1>Demonstração</h1><p className="mt-1 text-muted-foreground">Controles de simulação. Exclusivos do ambiente de demonstração; não são autenticação.</p></div>
+
+      <section className="space-y-2 rounded-xl border bg-card p-4" aria-label="Dados de exemplo">
+        <h2 className="text-base font-semibold">Dados de exemplo</h2>
+        <p className="text-sm text-muted-foreground">Leva cada cenário a um estado diferente (aprovação pendente, conflito, indicação, primeira mensagem, fora do playbook) para o Hoje abrir com trabalho real. Só funciona com a demonstração vazia.</p>
+        <Button onClick={() => populate.mutate()} disabled={populate.isPending}>Popular com dados de exemplo</Button>
+      </section>
 
       <section className="space-y-3 rounded-xl border bg-card p-4" aria-label="Cenários">
         <h2 className="text-base font-semibold">Cenários</h2>
