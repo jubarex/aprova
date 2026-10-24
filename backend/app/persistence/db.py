@@ -10,6 +10,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from ..config import Settings
+from . import flow_models  # noqa: F401  (registra as tabelas)
 from .models import Base
 
 

@@ -90,6 +90,20 @@ _T: dict[tuple[CaseState, str], CaseState] = {
     (S.READY_FOR_APPROVAL, "candidate_edited"): S.CHANGES_READY,
     (S.WAITING_MUNICIPAL_APPROVAL, "candidate_edited"): S.CHANGES_READY,
     (S.WAITING_IMPLANTER_APPROVAL, "candidate_edited"): S.CHANGES_READY,
+    # indicação de responsável, falta de destinatário e falhas de entrega (fatias 2-3)
+    (S.WAITING_ANY_CHANNEL, "referral_requested"): S.WAITING_REFERRAL,
+    (S.WAITING_PRIMARY_CHANNEL, "referral_requested"): S.WAITING_REFERRAL,
+    (S.RECONCILING_RESPONSES, "referral_requested"): S.WAITING_REFERRAL,
+    (S.BUILDING_ROUND, "no_recipient"): S.WAITING_OWNER,
+    (S.BUILDING_ROUND, "nothing_to_ask"): S.BLOCKED_HUMAN,
+    (S.WAITING_REFERRAL, "referral_rejected"): S.BUILDING_ROUND,
+    (S.WAITING_OWNER, "contact_authorized"): S.BUILDING_ROUND,
+    (S.ROUND_READY, "round_blocked"): S.BLOCKED_HUMAN,
+    (S.SENDING_ROUND, "all_channels_failed"): S.BLOCKED_HUMAN,
+    (S.WAITING_ANY_CHANNEL, "round_timeout"): S.BLOCKED_HUMAN,
+    (S.WAITING_PRIMARY_CHANNEL, "round_timeout"): S.BLOCKED_HUMAN,
+    # evidência nova durante a aplicação, antes do commit, impede aplicar
+    (S.APPLYING, "pending_evidence"): S.PROCESSING_REPLY,
     # base vigente mudou durante a aplicação (BASE_VERSION_CONFLICT) ou read-back divergente
     (S.APPLYING, "base_conflict"): S.BLOCKED_HUMAN,
     (S.VERIFYING, "readback_failed"): S.BLOCKED_HUMAN,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..agent import fixtures
@@ -37,6 +37,7 @@ ACTORS = [
     ("act_ana", "Ana Souza", "contato", "mun_vr", "sec_vr_faz"),
     ("act_joao", "João Lima", "contato", "mun_vr", "sec_vr_obr"),
     ("act_marcos", "Marcos Reis", "contato", "mun_sa", "sec_sa_faz"),
+    ("act_luiza", "Luiza Prado", "contato", "mun_sa", "sec_sa_faz"),
 ]
 
 
@@ -69,13 +70,22 @@ def seed(s: Session) -> None:
             v = store_version(s, p, fixtures.base_schema(), None)
             p.current_version_id = v.id
     s.flush()
-    if not s.scalar(select(func.count()).select_from(RoleAssignment)):
-        s.add(RoleAssignment(actor_id="act_rui", role="implanter"))
-        s.add(RoleAssignment(actor_id="act_rui", role="aprova_approver"))
-        s.add(RoleAssignment(actor_id="act_ana", process_id="proc_vr_iss012", municipality_id="mun_vr",
-                             role="municipal_approver"))
-        s.add(RoleAssignment(actor_id="act_ana", municipality_id="mun_vr", role="responder"))
-        s.add(RoleAssignment(actor_id="act_marcos", process_id="proc_sa_iss012", municipality_id="mun_sa",
-                             role="municipal_approver"))
-        # João responde, mas NÃO aprova: capacidade de responder != aprovar
-        s.add(RoleAssignment(actor_id="act_joao", municipality_id="mun_vr", role="responder"))
+
+    def role(actor, role_name, process=None, muni=None, topic=None):
+        q = select(RoleAssignment).where(RoleAssignment.actor_id == actor, RoleAssignment.role == role_name,
+                                         RoleAssignment.process_id == process, RoleAssignment.municipality_id == muni,
+                                         RoleAssignment.topic == topic)
+        if not s.scalar(q):
+            s.add(RoleAssignment(actor_id=actor, role=role_name, process_id=process, municipality_id=muni, topic=topic))
+
+    role("act_rui", "implanter")
+    role("act_rui", "aprova_approver")
+    for p in ("proc_vr_iss012", "proc_vr_iss030", "proc_vr_obr004", "proc_vr_vig002"):
+        role("act_ana", "municipal_approver", p, "mun_vr")
+    role("act_ana", "responder", None, "mun_vr", "fazenda")
+    # João responde sobre Obras, mas NÃO aprova: capacidade de responder != aprovar
+    role("act_joao", "responder", None, "mun_vr", "obras")
+    for p in ("proc_sa_iss012", "proc_sa_edu001"):
+        role("act_marcos", "municipal_approver", p, "mun_sa")
+    role("act_marcos", "responder", None, "mun_sa", None)
+    role("act_luiza", "responder", None, "mun_sa", "fazenda")

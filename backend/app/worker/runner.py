@@ -10,7 +10,7 @@ from typing import Callable
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session, sessionmaker
 
-from ..application import cases, changes
+from ..application import cases, changes, flow, rounds
 from ..application.common import AppError, audit, move_case, open_intervention
 from ..clock import business_now, real_now
 from ..persistence.db import tx
@@ -71,6 +71,15 @@ def _run_handler(factory, job: WorkItem) -> None:
             if case.state != expect:
                 return  # obsoleto: cancelado sem efeito
             (cases.handle_understand_form if job.kind == "understand_form" else cases.handle_analyze)(s, case)
+    elif job.kind in ("plan_round", "send_round", "consolidate"):
+        with tx(factory) as s:
+            case = s.get(ValidationCase, cid)
+            if job.kind == "plan_round":
+                flow.handle_plan_round(s, case)
+            elif job.kind == "send_round":
+                flow.handle_send_round(s, case, job.payload["round_id"])
+            else:
+                flow.handle_consolidate(s, case)
     elif job.kind == "apply_change_set":
         cs_id = job.payload["change_set_id"]
         try:
@@ -90,9 +99,16 @@ def _run_handler(factory, job: WorkItem) -> None:
         raise AppError("UNKNOWN_JOB", job.kind, 500)
 
 
+def tick(factory) -> int:
+    """Prazos (lembretes e intervenção) pelo relógio de negócio."""
+    with tx(factory) as s:
+        return rounds.tick_deadlines(s)
+
+
 def run_one(factory: sessionmaker[Session]) -> bool:
     _heartbeat["at"] = real_now().isoformat()
     recover_leases(factory)
+    tick(factory)
     got = claim(factory)
     if got is None:
         return False

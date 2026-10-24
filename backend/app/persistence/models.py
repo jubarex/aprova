@@ -58,6 +58,8 @@ class Actor(Base):
     municipality_id: Mapped[str | None] = mapped_column(ForeignKey("municipality.id"), index=True)
     secretariat_id: Mapped[str | None] = mapped_column(ForeignKey("secretariat.id"))
     preferred_channel: Mapped[str | None] = mapped_column(String)
+    aliases: Mapped[list] = mapped_column(JSON, default=list)
+    merged_into: Mapped[str | None] = mapped_column(String)
 
 
 class RoleAssignment(Base):
@@ -69,6 +71,7 @@ class RoleAssignment(Base):
     process_id: Mapped[str | None] = mapped_column(ForeignKey("process_definition.id"), index=True)
     municipality_id: Mapped[str | None] = mapped_column(ForeignKey("municipality.id"))
     role: Mapped[str] = mapped_column(String)  # municipal_approver | aprova_approver | responder | implanter
+    topic: Mapped[str | None] = mapped_column(String)  # escopo de assunto do responder (None = todos)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 

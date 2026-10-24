@@ -74,18 +74,50 @@ def pause_case(s: Session, case: ValidationCase, *, actor: str, expected_version
     case.resume_state = resume
 
 
+def safe_resume_target(s: Session, case: ValidationCase) -> CaseState | None:
+    """Estado seguro calculado após revalidar pendências; o cliente nunca escolhe o destino (v2 §9.2)."""
+    from ..persistence.flow_models import Gap
+    from . import messaging
+    if messaging.pending_evidence(s, case.id):
+        return CaseState.PROCESSING_REPLY
+    if s.scalar(select(Gap).where(Gap.case_id == case.id, Gap.status == "open", Gap.blocking == True)):  # noqa: E712
+        return CaseState.BUILDING_ROUND
+    from ..persistence.models import ChangeSet
+    cs = s.scalar(select(ChangeSet).where(ChangeSet.case_id == case.id).order_by(ChangeSet.created_at.desc()))
+    if cs is not None and cs.status in ("draft", "ready", "rejected"):
+        return CaseState.CHANGES_READY
+    return None
+
+
 def resume_case(s: Session, case: ValidationCase, *, actor: str, expected_version: int | None,
                 why: str = "") -> CaseState:
-    """O destino nunca vem do cliente: é o estado seguro do checkpoint, após revalidar pendências."""
     old = CaseState(case.state)
-    target = CaseState(case.resume_state) if case.resume_state else CaseState.BLOCKED_HUMAN
+    if old not in (CaseState.PAUSED, CaseState.BLOCKED_HUMAN, CaseState.FAILED_RETRYABLE):
+        raise AppError("INVALID_TRANSITION", "o caso não está pausado nem aguardando decisão", 409)
     if open_interventions(s, case.id):
         raise AppError("INTERVENTION_OPEN", "resolva as intervenções abertas antes de retomar", 409)
-    if not can_resume_to(old, target, CaseState(case.resume_state) if case.resume_state else None):
-        raise AppError("INVALID_TRANSITION", "retomada inválida", 409)
+    stored = CaseState(case.resume_state) if case.resume_state else None
+    if old == CaseState.PAUSED and stored:
+        target = stored
+    else:
+        target = safe_resume_target(s, case)
+    if target is None:
+        raise AppError("NOTHING_TO_RESUME", "não há um estado seguro para retomar; crie uma candidata ou nova rodada", 409)
+    from . import messaging, rounds
+    from datetime import timedelta
+    paused_for = business_now() - (case.state_since.replace(tzinfo=business_now().tzinfo)
+                                   if case.state_since.tzinfo is None else case.state_since)
     _bump(s, case, target, expected_version)
     audit(s, actor=actor, action="resume", case=case, from_state=old.value, to_state=target.value, why=why)
     case.resume_state = None
+    if old == CaseState.PAUSED:
+        rounds.shift_deadlines(s, case.id, paused_for if paused_for > timedelta(0) else timedelta(0))
+    if target == CaseState.PROCESSING_REPLY:
+        messaging.schedule_consolidation(s, case, timedelta(seconds=messaging.QUIET_SECONDS))
+    elif target == CaseState.BUILDING_ROUND:
+        enqueue(s, "plan_round", case.id, dedupe_key=f"plan:{case.id}:{case.version}")
+    elif messaging.pending_evidence(s, case.id) and target in (CaseState.WAITING_ANY_CHANNEL, CaseState.WAITING_PRIMARY_CHANNEL):
+        messaging.kick(s, case)
     return target
 
 

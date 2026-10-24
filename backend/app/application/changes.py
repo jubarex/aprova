@@ -161,6 +161,9 @@ def CaseState_in(case: ValidationCase, states: tuple[str, ...]) -> bool:
 def _guards_before_approval(s: Session, cs: ChangeSet, case: ValidationCase) -> FormTestRun:
     if open_interventions(s, case.id):
         raise AppError("INTERVENTION_OPEN", "há intervenção aberta; resolva antes de aprovar", 409)
+    from .messaging import pending_evidence
+    if pending_evidence(s, case.id):
+        raise AppError("EVIDENCE_PENDING", "há evidência ainda não processada; aguarde a consolidação", 409)
     run = latest_run(s, cs.id, "pre_approval")
     cases = suite_cases(s, cs.id)
     if run is None or not run.passed:
@@ -261,7 +264,7 @@ def decide_implanter(s: Session, cs: ChangeSet, actor: Actor, *, decision: str, 
     move_case(s, case, "implanter_approved", actor=actor.id, why="Aprovação da Aprova da mesma candidata",
               expected_version=expected_version)
     case.next_action = "Aplicando a versão aprovada"
-    enqueue(s, "apply_change_set", case.id, {"change_set_id": cs.id}, dedupe_key=f"apply:{cs.id}")
+    enqueue(s, "apply_change_set", case.id, {"change_set_id": cs.id}, dedupe_key=f"apply:{cs.id}:{case.version}")
     return a
 
 
@@ -310,7 +313,14 @@ def apply_change_set(s: Session, cs_id: str) -> str:
             enqueue(s, "verify_change_set", case.id, {"change_set_id": cs.id}, dedupe_key=f"verify:{cs.id}")
         return rc.detail["version_id"]
     if case.state != "APPLYING":
-        raise AppError("INVALID_TRANSITION", f"estado inesperado para aplicar: {case.state}", 409)
+        return ""  # evidência nova superou esta aplicação (ou o caso mudou): nada a fazer
+    from .messaging import pending_evidence
+    if pending_evidence(s, case.id):
+        move_case(s, case, "pending_evidence", actor="sistema", why="Evidência pendente impede aplicar")
+        from .messaging import schedule_consolidation
+        from datetime import timedelta
+        schedule_consolidation(s, case, timedelta(0))
+        return ""
     if open_interventions(s, case.id) or not _approvals_match(s, cs):
         raise AppError("GUARD_FAILED", "guardas de aplicação não satisfeitas", 409)
     process = s.get(ProcessDefinition, cs.process_id)
@@ -394,6 +404,13 @@ def close_ticket(s: Session, cs_id: str) -> None:
         s.flush()
         maybe_crash("after_note")
     process = s.get(ProcessDefinition, case.process_id)
+    from .messaging import pending_evidence
+    if pending_evidence(s, case.id):
+        open_intervention(s, case, code="EVIDENCIA_APOS_APLICACAO", urgency=1,
+                          reason="Chegou evidência depois da aplicação; o fechamento foi bloqueado até a análise.",
+                          needed="Avaliar se a nova informação exige correção (nova candidata aprovada)")
+        move_case(s, case, "version_diverged", actor="sistema", why="Evidência posterior à aplicação")
+        return
     if process.current_version_id != cs.applied_version_id or not _receipt(s, f"verify:{cs.id}") \
             or not _approvals_match(s, cs) or open_interventions(s, case.id):
         open_intervention(s, case, code="VERSAO_DIVERGENTE", urgency=1,
