@@ -1,0 +1,8 @@
+backend/var/
+backend/.venv/
+__pycache__/
+*.pyc
+node_modules/
+frontend/dist/
+.env
+artifacts/*.json

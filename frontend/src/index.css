@@ -1,0 +1,179 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+
+/* Tema claro institucional (direcionamento visual §2-§5). Só tema claro nesta versão. */
+
+@theme inline {
+  --font-sans: 'Geist Variable', 'Segoe UI', system-ui, sans-serif;
+  --font-heading: var(--font-sans);
+  --font-mono: 'Geist Mono Variable', ui-monospace, Consolas, monospace;
+
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* raios: sm 4 (badge) · md 6 (botão/campo) · lg 8 (item) · xl 12 (card) */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  --color-brand-50: #eef3fb;
+  --color-brand-100: #d9e4f5;
+  --color-brand-400: #5a82c4;
+  --color-brand-600: #1f4785;
+  --color-brand-700: #173866;
+
+  /* Eixo 1: prazo */
+  --color-ontrack: #16a34a;
+  --color-ontrack-bg: #f0fdf4;
+  --color-ontrack-fg: #166534;
+  --color-ontrack-border: #bbf7d0;
+  --color-atrisk: #d97706;
+  --color-atrisk-bg: #fffbeb;
+  --color-atrisk-fg: #92400e;
+  --color-atrisk-border: #fde68a;
+  --color-late: #dc2626;
+  --color-late-bg: #fef2f2;
+  --color-late-fg: #991b1b;
+  --color-late-border: #fecaca;
+
+  /* Eixo 2: estado do caso */
+  --color-st-blocked: #ea580c;
+  --color-st-blocked-bg: #fff7ed;
+  --color-st-blocked-fg: #9a3412;
+  --color-st-blocked-border: #fed7aa;
+  --color-st-waiting: #0284c7;
+  --color-st-waiting-bg: #f0f9ff;
+  --color-st-waiting-fg: #075985;
+  --color-st-waiting-border: #bae6fd;
+  --color-st-running: #2c5aa0;
+  --color-st-running-bg: #eef3fb;
+  --color-st-running-fg: #173866;
+  --color-st-running-border: #b3c8eb;
+  --color-st-paused: #71717a;
+  --color-st-paused-bg: #f4f4f5;
+  --color-st-paused-fg: #3f3f46;
+  --color-st-paused-border: #d4d4d8;
+  --color-st-failed: #dc2626;
+  --color-st-failed-bg: #fef2f2;
+  --color-st-failed-fg: #991b1b;
+  --color-st-failed-border: #fecaca;
+  --color-st-completed: #16a34a;
+  --color-st-completed-bg: #f0fdf4;
+  --color-st-completed-fg: #166534;
+  --color-st-completed-border: #bbf7d0;
+  --color-st-idle: #a1a1aa;
+  --color-st-idle-bg: #fafafa;
+  --color-st-idle-fg: #52525b;
+  --color-st-idle-border: #e4e4e7;
+  --color-st-sim: #7c3aed;
+  --color-st-sim-bg: #f5f3ff;
+  --color-st-sim-fg: #5b21b6;
+  --color-st-sim-border: #ddd6fe;
+
+  /* Cliente: identifica, nunca sinaliza prazo ou estado */
+  --color-client-1: #0f766e;
+  --color-client-1-bg: #f0fdfa;
+  --color-client-1-border: #99f6e4;
+  --color-client-2: #9d174d;
+  --color-client-2-bg: #fdf2f8;
+  --color-client-2-border: #fbcfe8;
+  --color-client-3: #854d0e;
+  --color-client-3-bg: #fefce8;
+  --color-client-3-border: #fde68a;
+
+  /* Canais */
+  --color-ch-pylon: #4f46e5;
+  --color-ch-whatsapp: #15803d;
+  --color-ch-portal: #1f4785;
+  --color-ch-system: #71717a;
+  --color-ch-agent: #7c3aed;
+}
+
+:root {
+  --background: #fafafa;
+  --foreground: #09090b;
+  --card: #ffffff;
+  --card-foreground: #09090b;
+  --popover: #ffffff;
+  --popover-foreground: #09090b;
+  --primary: #1f4785;
+  --primary-foreground: #ffffff;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #09090b;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --accent: #f4f4f5;
+  --accent-foreground: #09090b;
+  --destructive: #dc2626;
+  --border: #e4e4e7;
+  --input: #e4e4e7;
+  --ring: #5a82c4;
+  --radius: 8px;
+  --sidebar: #fafafa;
+  --sidebar-foreground: #09090b;
+  --sidebar-primary: #1f4785;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e4e4e7;
+  --sidebar-accent-foreground: #09090b;
+  --sidebar-border: #e4e4e7;
+  --sidebar-ring: #5a82c4;
+
+  --shadow-xs: 0 1px 2px rgba(9, 9, 11, .05);
+  --shadow-sm: 0 1px 3px rgba(9, 9, 11, .08), 0 1px 2px -1px rgba(9, 9, 11, .08);
+  --ease: cubic-bezier(.2, .7, .2, 1);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    color-scheme: light;
+  }
+  body {
+    @apply bg-background text-foreground text-sm leading-normal;
+    margin: 0;
+  }
+  h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    box-shadow: 0 0 0 3px rgba(90, 130, 196, .35);
+  }
+}
+
+.late-hatch {
+  background-image: repeating-linear-gradient(135deg, rgba(220, 38, 38, .18) 0 4px, transparent 4px 8px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}

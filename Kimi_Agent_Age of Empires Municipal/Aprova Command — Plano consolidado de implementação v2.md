@@ -8,6 +8,8 @@
 
 Este documento reúne as decisões de produto e engenharia em uma especificação autocontida para desenvolvimento. Para a implementação iniciada a partir desta versão, ele substitui a [especificação anterior](<Aprova Command — Especificação completa para desenvolvimento.md>). O [parecer de revisão](<Aprova Command — Revisão e prontidão para implantação.md>) permanece como registro das críticas que orientaram esta consolidação. A pesquisa competitiva é contexto, não um segundo plano de implementação.
 
+**Adendo v2.1:** o [Adendo v2.1 — Portal, Hoje e shadcn](<Aprova Command — Adendo v2.1 Portal, Hoje e shadcn.md>) acrescenta o Portal da prefeitura como terceiro canal, a tela "Hoje" do implantador, o cliente sempre explícito, a compatibilidade com o Pylon e a interface em shadcn/ui. Onde divergirem, vale o adendo.
+
 **Situação inicial:** planejamento consolidado; aplicação, testes e implantação ainda não comprovados. O próximo trabalho é a fatia 1 da seção 17. A publicação em produção não integra esta entrega.
 
 ## 1. Produto e resultado esperado

@@ -1,6 +1,6 @@
 # Aprova Command — Direcionamento visual
 
-**Versão:** 2.0 (tema claro institucional)
+**Versão:** 2.1 (tema claro institucional, shadcn/ui)
 **Data:** 24/10/2026
 **Escopo:** referência visual para implementar o frontend (React + TypeScript + CSS com variáveis de tema), como prevê a seção 4.1 do plano. Este documento não altera regras de produto; ele traduz as seções 14.1–14.4 em decisões de interface.
 
@@ -14,6 +14,35 @@
 4. **Um caso, vários canais.** Pylon, WhatsApp e Portal são canais do mesmo caso e da mesma rodada. A interface mostra isso juntando tudo, nunca em abas separadas por canal.
 5. **Institucional e discreto.** Estilo shadcn/ui: fundo claro, bordas finas, um azul-marinho de marca e cor só onde há significado.
 6. **Honestidade de demonstração (I12).** Os rótulos de ambiente, de modo de IA e de extração simulada ficam sempre visíveis.
+
+---
+
+## 2. Base de componentes: shadcn/ui
+
+A interface é construída com **shadcn/ui** de fato, e não apenas com estilo parecido: React + TypeScript + Vite + Tailwind CSS v4 + componentes shadcn (Radix) + `lucide-react`. Ver [Adendo v2.1](<Aprova Command — Adendo v2.1 Portal, Hoje e shadcn.md>) §12.
+
+- Inicializar com `npx shadcn@latest init` (Vite, Tailwind v4, tema claro). Só tema claro nesta versão.
+- Componentes usados: `sidebar, button, badge, card, table, tabs, dialog, alert-dialog, sheet, command, sonner, tooltip, skeleton, alert, progress, textarea, radio-group, form, input, select, separator, breadcrumb, avatar, dropdown-menu, scroll-area`.
+- Não alterar o código gerado em `components/ui/` para regra de negócio. Variações visuais de domínio ficam em `components/domain/` (seção 7).
+- Tooltip nunca carrega informação essencial (prazo, estado, cliente). Tudo o que importa está visível sem hover.
+
+Mapeamento dos tokens da seção 3 para as variáveis do shadcn (`src/index.css`):
+
+| Variável shadcn                     | Token                                       |
+| ----------------------------------- | ------------------------------------------- |
+| `--background`                      | `--zinc-50`                                 |
+| `--card`, `--popover`               | `#ffffff`                                   |
+| `--foreground`, `--card-foreground` | `--zinc-950`                                |
+| `--primary` / hover                 | `--brand-600` / `--brand-700`               |
+| `--primary-foreground`              | `#ffffff`                                   |
+| `--secondary`, `--muted`, `--accent`| `--zinc-100`                                |
+| `--muted-foreground`                | `--zinc-500`                                |
+| `--border`, `--input`               | `--zinc-200`                                |
+| `--ring`                            | `--brand-400`                               |
+| `--destructive`                     | `#dc2626`                                   |
+| `--radius`                          | `8px` (sm 4 · md 6 · lg 8 · xl 12, seção 5) |
+
+Os eixos de prazo, estado, cliente e canal viram tokens semânticos em `@theme` (`deadline-*`, `state-*`, `client-*`, `channel-*`), usados pelos componentes de domínio e nunca diretamente por cor solta.
 
 ---
 
@@ -119,7 +148,100 @@ Use sentence case em tudo. Caixa alta só em rótulos pequenos ("CLIENTE", "SEU 
 - **Transparência:** só o overlay do diálogo (`rgba(9,9,11,.5)`). Sem blur.
 - **Textura:** só a hachura vermelha de atraso no cronograma (`repeating-linear-gradient(135deg, rgba(220,38,38,.18) 0 4px, transparent 4px 8px)`).
 
---
+---
+
+## 6. Layout
+
+### 6.1 Implantadora (AppShell)
+
+```text
+┌───────────────┬──────────────────────────────────────────────────────┐
+│ [A] Aprova    │ Demo — dados sintéticos · IA: replay offline         │ ← DemoBanner fixo
+│ Command       ├──────────────────────────────────────────────────────┤
+│               │ [VR] Prefeitura de Vale do Ribeiro      ⌘K  Atualiz. │ ← selo do cliente
+│ Cliente ▾     │ Breadcrumb                                    há 2 s │
+│ Todos (24)    ├──────────────────────────────────────────────────────┤
+│               │                                                      │
+│ Hoje       12 │  Conteúdo da página                                  │
+│ Caixa       3 │                                                      │
+│ Clientes      │                                                      │
+│ Cronograma    │                                                      │
+│ Intervenções  │                                                      │
+│               │                                                      │
+│ Persona: Rui  │                                                      │
+└───────────────┴──────────────────────────────────────────────────────┘
+```
+
+- Barra lateral `sidebar` do shadcn, 240px, recolhível a ícones. Seletor de cliente no topo com contagem de ações do dia por cliente.
+- Cabeçalho com `ClientSeal` quando um cliente está selecionado, `breadcrumb`, busca `command` e `StaleIndicator`.
+- Conteúdo com largura máxima de 1200px e gutter de 24px; em tela estreita, a barra lateral vira `sheet`.
+- Detalhes de um item abrem em `sheet` lateral, sem sair da lista.
+
+### 6.2 Portal da prefeitura
+
+```text
+┌──────────────────────────────┐
+│ Demo — dados sintéticos      │
+│ [VR] Prefeitura de Vale do   │
+│      Ribeiro                 │
+│ Olá, Ana · Sec. de Fazenda   │
+├──────────────────────────────┤
+│ SEU PRÓXIMO PASSO            │
+│ Licença sanitária: para quem │
+│ deve ser exigida?            │
+│ Vence em 3 dias · 27/10      │
+│ [ Responder agora ]          │
+├──────────────────────────────┤
+│ Para hoje (3)                │
+│ Próximos (4)                 │
+│ Aguardando a Aprova (2)      │
+│ Concluídos (5)               │
+└──────────────────────────────┘
+```
+
+- Mobile-first, uma coluna, largura máxima de 560px, gutter de 16px. Sem barra lateral e sem tabelas.
+- Botão principal de largura total e altura mínima de 44px.
+- Selo da prefeitura sempre no topo. Nenhum termo interno ("lacuna", "ChangeSet", "candidata").
+
+---
+
+## 7. Componentes de domínio
+
+Ficam em `components/domain/` e compõem os componentes shadcn.
+
+| Componente            | Base shadcn        | Regra                                                                                 |
+| --------------------- | ------------------ | ------------------------------------------------------------------------------------- |
+| `ClientMark`          | —                  | Quadrado 20–24px, raio 4px, sigla em Geist 600, cor `--client-n`                      |
+| `ClientSeal`          | `badge`            | Sigla + nome por extenso; aparece no cabeçalho e no Portal                            |
+| `DeadlineBadge`       | `badge`            | Ícone + texto relativo + data ("Atrasado 2 dias · 22/10"); cores do eixo 1            |
+| `StateBadge`          | `badge`            | Ícone + rótulo do eixo 2; nunca só cor                                                |
+| `ChannelBadge`        | `badge`            | Ícone e cor do canal (seção 3.4)                                                      |
+| `TaskRow`             | `card`/linha       | `ClientMark` · título no infinitivo · motivo · `DeadlineBadge` · botão da ação        |
+| `NextStepCard`        | `card`             | Fundo `--brand-50`, borda `--brand-100`, rótulo "SEU PRÓXIMO PASSO", um botão         |
+| `WhyPanel`            | `card`             | O que está acontecendo · por quê · próximo passo · quem · desde quando                |
+| `DemoBanner`          | `alert`            | "Ambiente de demonstração — dados sintéticos", modo de IA e extração simulada         |
+| `StaleIndicator`      | —                  | "Atualizado há X s"; vira alerta quando o worker está parado                          |
+| `ConfirmEffectDialog` | `alert-dialog`     | Repete cliente, processo, destinatário e versão/hash curto antes de efeito externo    |
+
+---
+
+## 8. Telas
+
+| Tela                     | Rota                         | Pergunta que responde                         | Conteúdo principal                                                                                          |
+| ------------------------ | ---------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Hoje                     | `/`                          | O que eu tenho que fazer hoje?                | Lista de `TaskRow` ordenada por prazo; abas "Aguardando prefeitura" e "Agente trabalhando"                  |
+| Caixa de entrada         | `/inbox`                     | O que chegou e o que precisa de triagem?      | Mensagens de todos os canais e clientes juntas, com `ClientMark` e `ChannelBadge`                           |
+| Clientes                 | `/clients`, `/clients/:id`   | Como está cada prefeitura?                    | Progresso por estado, secretarias silenciosas, contatos, prazo da implantação, grade de processos           |
+| Cronograma               | `/schedule`                  | O que vai atrasar?                            | Gantt por cliente e onda; cabeçalho de grupo com cor do cliente; hachura de atraso                          |
+| Processo                 | `/processes/:id/*`           | O que está acontecendo neste caso e por quê?  | `WhyPanel` no topo; abas de dossiê, rodadas, conversas (canais juntos), formulário, pessoas e aprovações     |
+| Portal — Início          | `/portal`                    | O que preciso fazer e até quando?             | `NextStepCard`; Para hoje, Próximos, Aguardando a Aprova, Concluídos                                        |
+| Portal — Pendência       | `/portal/pendencias/:id`     | Por que estão me perguntando isso?            | Por que perguntamos, como está hoje, opções rápidas, texto, anexo, "Não sei, indicar quem sabe"             |
+| Portal — Aprovação       | `/portal/aprovacoes/:id`     | O que vai mudar se eu aprovar?                | Antes/depois em linguagem simples, exemplos dos testes, "Aprovar versão v2" ou "Pedir ajuste"               |
+| Portal — Histórico       | `/portal/historico`          | O que eu já respondi?                         | Respostas por qualquer canal, com data, canal e alteração gerada                                            |
+
+Toda tela cobre carregando (`skeleton`), vazio, sem resultados, erro recuperável e dados desatualizados (seção 11).
+
+---
 
 ## 9. Texto e tom
 
@@ -163,3 +285,5 @@ Use sentence case em tudo. Caixa alta só em rótulos pequenos ("CLIENTE", "SEU 
 - Componentes: `components/**` (`.jsx` + `.d.ts` + `.prompt.md`).
 - Protótipo clicável: `ui_kits/command/Aprova Command.dc.html` (Hoje, Caixa de entrada, Clientes, Cronograma, Processo, Portal da prefeitura).
 - Guia completo: `readme.md`.
+
+Esses arquivos pertencem ao projeto de design e **não estão neste repositório**. Até que sejam incluídos, a referência executável são as seções 2, 6, 7 e 8 deste documento e o [Adendo v2.1](<Aprova Command — Adendo v2.1 Portal, Hoje e shadcn.md>).
