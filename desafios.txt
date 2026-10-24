@@ -1,0 +1,163 @@
+Hackathon Aprova
+Cronograma
+Regras
+Desafios
+Dicas
+Sábado, 24 de outubro de 2026 · 9h às 17h
+Um dia para resolver problemas reais.
+Escolha um dos três desafios, construa uma solução agêntica e entregue pelo QR code até as 17h.
+
+Entrega pelo QR code
+17:00
+Faltam 7h 21min
+Cronograma
+Bebida e comida chegam durante o desenvolvimento. O único horário inegociável é a entrega.
+
+9h
+Início
+Abertura, apresentação dos desafios e regras
+10h
+Chegam as bebidas
+Desenvolvimento segue
+11h30
+Chega a comida
+Desenvolvimento segue
+16h
+Começa o encerramento
+Finalizar demo, README e pasta INSTRUCTIONS
+17h
+Entrega pelo QR code
+Prazo final, sem tolerância
+Depois
+Apresentações e premiação
+Os jurados escolhem o top 3
+Regras
+Os jurados precisam enxergar quais instruções o agente segue e o que cada uma faz.
+
+Agentes permitidos
+Claude Code, Codex ou agentes open source.
+
+Pasta INSTRUCTIONS no git
+Obrigatória. Na apresentação, mostre quais instruções são chamadas, como e qual a responsabilidade de cada uma.
+
+Nenhum desafio vale mais
+Os 3 primeiros lugares podem ser do mesmo problema. Decide o nível da entrega.
+
+Banca
+De 3 a 5 jurados, conforme quem estiver disponível no momento.
+
+Entrega
+Link do repositório pelo QR code até as 17h.
+
+Checklist do time
+
+Repositório acessível aos jurados
+
+Pasta INSTRUCTIONS com as instruções do agente
+
+README com o problema escolhido e como rodar
+
+Demo funcionando ou vídeo de backup
+
+Envio feito pelo QR code
+0 de 5 prontos
+Desafios
+A Aprova fornece soluções para gestão pública, principalmente processos eletrônicos. Os contratos cobrem cada vez mais a prefeitura toda, mas nem todas as secretarias se engajam ao mesmo tempo. Cliente ocupado, pouco técnico e que vive no WhatsApp vale para os três.
+
+
+Como resolver mais tickets, mais rápido, com tickets melhores desde a abertura?
+
+O volume de tickets supera a capacidade do time. Muitos chegam incompletos, o que gera várias interações, estoura o SLA e aumenta as reclamações por demora.
+
+Personas
+Requerente (munícipe)
+Abre chamado pelo chat da plataforma, sem domínio técnico para descrever o problema.
+Analista da prefeitura
+Usa o sistema todo dia e abre chamados, mas nem sempre manda toda a informação.
+Analista de suporte
+Investiga, pede complementos e já usa agents para resolver tickets.
+CSA
+Sente o impacto na relação com o cliente quando há insatisfação.
+Objetivos
+Mais capacidade: mais tickets no SLA, menor tempo médio de resolução, mais tickets por analista, menos pendentes e vencidos.
+Mais previsibilidade: menos reclamações por demora, mais satisfação, menos tickets parados sem atualização.
+Abertura melhor: menos interações por ticket, menos pedidos de complemento, mais tickets resolvíveis na primeira análise.
+Menos tickets: reduzir os chamados abertos via chat e Pylon.
+Dicas
+O que pesa é o nível da entrega, não o desafio escolhido.
+
+---
+
+Como coletar e validar a regra de negócio de ~100 processos sem depender de reunião?
+
+12–13
+secretarias por prefeitura
+~100
+processos por prefeitura
+45–60
+dias de meta
+~10/dia
+processos por implantador
+Com 4 projetos de prefeitura toda ao mesmo tempo, o implantador teria ~400 processos em ~40 dias úteis. Por reunião, a conta não fecha, e sobra o protocolo genérico: rápido de entregar, mas sem regras e com pouca adesão.
+
+Onde trava hoje
+A regra não chega. Está na cabeça dos analistas e raramente escrita. Pedidos assíncronos quase nunca voltam.
+Chega sem padrão. PDF de lei, foto de formulário, planilha, print, texto solto, tudo picado no ticket.
+Só se valida testando. Os formulários vêm clonados da cidade modelo, mas as particularidades só aparecem no teste, um por vez.
+Objetivos
+Menos horas de reunião por processo.
+Menos idas e vindas até a regra estar completa.
+Menos tempo para validar um formulário clonado.
+Mais processos no ar com regras inteligentes, e não como protocolo genérico.
+Personas
+Secretário ou diretor
+Decide e responde pelo projeto, mas tem pouco tempo e não passa a regra.
+Analistas da prefeitura
+Têm a regra e vão usar o sistema, mas o projeto compete com a operação. Podem ou não torcer por ele.
+Implantador (Aprova)
+Adapta formulários, configura, testa e treina. Depende do retorno do cliente.
+Analistas e secretários respondem no WhatsApp, não no e-mail nem no ticket. Cada cliente já tem um grupo com a Aprova.
+
+---
+
+
+Como tirar o CSA da operação para gerar valor e expansão com quem decide?
+
+Depois da implantação, o CS cuida do relacionamento com diretores e secretários para garantir renovação e expansão do contrato. Na prática, o CSA fica preso em bugs e assuntos operacionais.
+
+Personas
+Secretário (economic buyer)
+Constantemente interrompido, sem tempo para reuniões, mal liga o computador.
+Prefeito
+Muitas vezes o maior decisor. Extremamente ocupado e vive no WhatsApp.
+Diretores e servidores
+Focados em tickets e operação, preocupados com riscos pessoais, sem incentivo para a Aprova expandir.
+Critérios: nível de automação do trabalho do CSA, capacidade de criar novas conexões e de engajar e encantar stakeholders atuais e futuros.
+O CSA consegue
+Superar bugs e bloqueios rápido ou de forma assíncrona.
+Automatizar a troca de informações com stakeholders operacionais.
+Ver com dados quais contas são mais problemáticas.
+Criar materiais personalizados com os resultados obtidos.
+Mostrar tudo que a plataforma faz e captar pistas de expansão.
+Chegar a secretários e diretores de outras secretarias com conteúdo feito para cada um.
+
+
+---
+
+
+Poucos objetivos, bem atacados
+Resolver 2 de verdade vale mais que tocar em todos.
+Mostre o indicador que mexe
+Diga qual métrica do desafio sua solução melhora e como.
+Use o canal real do cliente
+Prefeito, secretário e analista vivem no WhatsApp.
+Agente + código clássico
+Os desafios pedem uma experiência completa, não só um prompt.
+INSTRUCTIONS legível
+Os jurados vão olhar o que cada instrução faz.
+Plano B para a demo
+Um vídeo curto salva a apresentação se algo quebrar ao vivo.
+
+
+
+
